@@ -1,0 +1,24 @@
+page +="<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0\">";
+page +="<style>.test{-moz-user-select: none;-o-user-select:none;-khtml-user-select:none;-webkit-user-select:none;-ms-user-select:none;user-select:none;}</style>";
+
+page +="<body style=margin:0;font-family:Arial>";
+page +="<div style=display:flex;width:100vw;height:100vh;justify-content:space-evenly;align-items:center;background:rgb(0,217,255);background:linear-gradient(87deg,rgba(0,217,255,1)0%,rgba(156,0,255,1)100%);>";
+page +="<div style=width:300px;><h3>Longitude :</h3><h3>Latitude :</h3><h3>Température :</h3><h3>Humidité :</h3></div>";
+page +="<p align=center><IMG SRC='http://" + WiFiAddr + ":81/stream' style='width:300px; transform:rotate(180deg);'></p>";
+page +="<div unselectable=\"on\" onselectstart=\"return false\">";
+page +="<p align=center> <button style=background-color:#0099FF;width:90px;height:80px;border-radius:8px onmousedown=getsend('go') onmouseup=getsend('stop') ontouchstart=getsend('go') ontouchend=getsend('stop') ><b>Avancer</b></button> </p>";
+page +="<p align=center>";
+page +="<button style=background-color:#0099FF;width:90px;height:80px;border-radius:8px onmousedown=getsend('left') onmouseup=getsend('stop') ontouchstart=getsend('left') ontouchend=getsend('stop')><b>Gauche</b></button>&nbsp;";
+page +="<button style=background-color:Red;width:90px;height:80px;border-radius:8px onmousedown=getsend('stop') onmouseup=getsend('stop')><b>Stop</b></button>&nbsp;";
+page +="<button style=background-color:#0099FF;width:90px;height:80px;border-radius:8px onmousedown=getsend('right') onmouseup=getsend('stop') ontouchstart=getsend('right') ontouchend=getsend('stop')><b>Droite</b></button>";
+page +="</p>";
+
+page +="<p align=center><button style=background-color:#0099FF;width:90px;height:80px;border-radius:8px onmousedown=getsend('back') onmouseup=getsend('stop') ontouchstart=getsend('back') ontouchend=getsend('stop') ><b>Reculer</b></button></p>";
+
+page +="<p align=center>";
+page +="<button style=background-color:yellow;width:140px;height:40px;border-radius:8px onmousedown=getsend('ledon')><b>Lumière ON</b></button>";
+page +="<button style=background-color:yellow;width:140px;height:40px;border-radius:8px onmousedown=getsend('ledoff')><b>Lumière OFF</b></button>";
+page +="</p>";
+page +="</div>";
+page +="</div>";
+page +="</body>";
