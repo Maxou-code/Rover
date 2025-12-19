@@ -67,9 +67,6 @@
 
 ---
 
-----------------------------------------------------------------------------------------------
-
----
 
 ### 🔹 **1. Antennes USB Wi-Fi directionnelles pour PC**  
 Ces antennes sont souvent utilisées pour **capter des réseaux distants** et peuvent être une solution pour interagir avec l’ESP32 à plusieurs kilomètres.  
@@ -108,5 +105,3 @@ Si l’ESP32 est configuré en **point d’accès (AP)**, le PC pourra s’y con
 WiFi.setTxPower(WIFI_POWER_19_5dBm);
 ```  
 🔸 **Utiliser un répéteur Wi-Fi** si la connexion est instable sur longue distance.  
-
----
