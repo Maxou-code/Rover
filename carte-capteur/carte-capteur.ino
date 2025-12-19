@@ -15,24 +15,24 @@ int photo_4 = A3;
 
 int val_photo_1, val_photo_2, val_photo_3, val_photo_4, val_photo_moyen;
 
-int Echo_1 = 24;
-int Trig_1 = 22;
+int Echo_Capteur_US_AD = 24;
+int Trig_Capteur_US_AD = 22;
 
-int Echo_2 = 30;
-int Trig_2 = 28;
+int Echo_Capteur_US_Ar = 30;
+int Trig_Capteur_US_Ar = 28;
 
-int Echo_3 = 36;
-int Trig_3 = 34;
+int Echo_Capteur_US_D = 36;
+int Trig_Capteur_US_D = 34;
 
-int Echo_4 = 42;
-int Trig_4 = 40;
+int Echo_Capteur_US_G = 42;
+int Trig_Capteur_US_G = 40;
 
-int Echo_5 = 48;
-int Trig_5 = 46;
+int Echo_Capteur_US_AG = 48;
+int Trig_Capteur_US_AG = 46;
 
-int Distance_1, Distance_2, Distance_3, Distance_4, Distance_5;
+int Distance_AD, Distance_Ar, Distance_D, Distance_G, Distance_AG;
 
-int Distance_avant;
+int Distance_A;
 
 double lat, lng;
 
@@ -58,16 +58,16 @@ void setup() {
   pinMode(photo_3, INPUT);
   pinMode(photo_4, INPUT);
 
-  pinMode(Echo_1, INPUT);
-  pinMode(Trig_1, OUTPUT);
-  pinMode(Echo_2, INPUT);
-  pinMode(Trig_2, OUTPUT);
-  pinMode(Echo_3, INPUT);
-  pinMode(Trig_3, OUTPUT);
-  pinMode(Echo_4, INPUT);
-  pinMode(Trig_4, OUTPUT);
-  pinMode(Echo_5, INPUT);
-  pinMode(Trig_5, OUTPUT);
+  pinMode(Echo_Capteur_US_AD, INPUT);
+  pinMode(Trig_Capteur_US_AD, OUTPUT);
+  pinMode(Echo_Capteur_US_Ar, INPUT);
+  pinMode(Trig_Capteur_US_Ar, OUTPUT);
+  pinMode(Echo_Capteur_US_D, INPUT);
+  pinMode(Trig_Capteur_US_D, OUTPUT);
+  pinMode(Echo_Capteur_US_G, INPUT);
+  pinMode(Trig_Capteur_US_G, OUTPUT);
+  pinMode(Echo_Capteur_US_AG, INPUT);
+  pinMode(Trig_Capteur_US_AG, OUTPUT);
 
   pinMode(led_on, OUTPUT);
   
@@ -82,21 +82,21 @@ void setup() {
 }
 
 void loop() {
-  Distance_1 = Distance_test(Trig_1, Echo_1);
-  Distance_2 = Distance_test(Trig_2, Echo_2);
-  Distance_3 = Distance_test(Trig_3, Echo_3);
-  Distance_4 = Distance_test(Trig_4, Echo_4);
-  Distance_5 = Distance_test(Trig_5, Echo_5);
+  Distance_AD = Distance_test(Trig_Capteur_US_AD, Echo_Capteur_US_AD);
+  Distance_Ar = Distance_test(Trig_Capteur_US_Ar, Echo_Capteur_US_Ar);
+  Distance_D = Distance_test(Trig_Capteur_US_D, Echo_Capteur_US_D);
+  Distance_G = Distance_test(Trig_Capteur_US_G, Echo_Capteur_US_G);
+  Distance_AG = Distance_test(Trig_Capteur_US_AG, Echo_Capteur_US_AG);
 
-  Distance_avant = (Distance_1 < Distance_5) ? Distance_1 : Distance_5;
+  Distance_A = (Distance_AD < Distance_AG) ? Distance_AD : Distance_AG;
 
-  Serial.print(Distance_avant);
+  Serial.print(Distance_A);
   Serial.print(",");
-  Serial.print(Distance_2);
+  Serial.print(Distance_Ar);
   Serial.print(",");
-  Serial.print(Distance_3);
+  Serial.print(Distance_D);
   Serial.print(",");
-  Serial.print(Distance_4);
+  Serial.print(Distance_G);
   Serial.print(",");
 
   val_photo_1 = analogRead(photo_1);
