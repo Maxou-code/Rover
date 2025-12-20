@@ -30,3 +30,12 @@
 | Trig                    | 34 Mega  | Trig                    | 40 Mega  |
 | Echo                    | 36 Mega  | Echo                    | 42 Mega  |
 | GND                     | GND Mega | GND                     | GND Mega |
+
+## Phtorésistance
+
+| Phtorésistance 1 | Port     | Phtorésistance 2 | Port     | Phtorésistance 3 | Port     | Phtorésistance 4 | Port     |
+| ---------------- | -------- | ---------------- | -------- | ---------------- | -------- | ---------------- | -------- |
+|                  |          |                  |          |                  |          |                  |          |
+| 5V               | 5V Mega  | 5V               | 5V Mega  | 5V               | 5V Mega  | 5V               | 5V Mega  |
+| OUT              | A0 Mega  | OUT              | A1 Mega  | OUT              | A2 Mega  | OUT              | A3 Mega  |
+| GND              | GND Mega | GND              | GND Mega | GND              | GND Mega | GND              | GND Mega |
