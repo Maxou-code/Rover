@@ -15,10 +15,18 @@
 
 ## Capteur ultrason
 
-| Capteur Ultrason Avant D | Port     || Capteur Ultrason Avant G | Port     || Capteur Ultrason Arrière | Port     || Capteur Ultrason Droite | Port     || Capteur Ultrason Gauche | Port     |
-| ------------------------ | -------- || ------------------------ | -------- || ------------------------ | -------- || ----------------------- | -------- || ----------------------- | -------- |
-|                          |          ||                          |          ||                          |          ||                         |          ||                         |          |
-| 5V                       | 5V Mega  || 5V                       | 5V Mega  || 5V                       | 5V Mega  || 5V                      | 5V Mega  || 5V                      | 5V Mega  |
-| Trig                     | 22 Mega  || Trig                     | 46 Mega  || Trig                     | 28 Mega  || Trig                    | 34 Mega  || Trig                    | 40 Mega  |
-| Echo                     | 24 Mega  || Echo                     | 48 Mega  || Echo                     | 30 Mega  || Echo                    | 36 Mega  || Echo                    | 42 Mega  |
-| GND                      | GND Mega || GND                      | GND Mega || GND                      | GND Mega || GND                     | GND Mega || GND                     | GND Mega |
+| Capteur Ultrason Avant D | Port     | Capteur Ultrason Avant G | Port     | Capteur Ultrason Arrière | Port     |
+| ------------------------ | -------- | ------------------------ | -------- | ------------------------ | -------- |
+|                          |          |                          |          |                          |          |
+| 5V                       | 5V Mega  | 5V                       | 5V Mega  | 5V                       | 5V Mega  |
+| Trig                     | 22 Mega  | Trig                     | 46 Mega  | Trig                     | 28 Mega  |
+| Echo                     | 24 Mega  | Echo                     | 48 Mega  | Echo                     | 30 Mega  |
+| GND                      | GND Mega | GND                      | GND Mega | GND                      | GND Mega |
+
+| Capteur Ultrason Droite | Port     | Capteur Ultrason Gauche | Port     |
+| ----------------------- | -------- | ----------------------- | -------- |
+|                         |          |                         |          |
+| 5V                      | 5V Mega  | 5V                      | 5V Mega  |
+| Trig                    | 34 Mega  | Trig                    | 40 Mega  |
+| Echo                    | 36 Mega  | Echo                    | 42 Mega  |
+| GND                     | GND Mega | GND                     | GND Mega |
