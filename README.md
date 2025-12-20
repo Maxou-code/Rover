@@ -16,7 +16,7 @@ Le robot est composé de deux microcontrôleurs communiquant via une **liaison s
 
 ### 🔹 ESP32
 - Contrôle des moteurs
-- Contrôle des servomoteurs
+- Contrôle du servomoteur
 - Communication Wi-Fi
 - Réception et traitement des données provenant de l’Arduino Mega
 
@@ -39,7 +39,7 @@ Le robot est composé de deux microcontrôleurs communiquant via une **liaison s
 ---
 
 ## ⚙️ Actionneurs
-- 🚗 Moteurs pilotés via une **carte de contrôle moteur** (ESP32)
+- 🚗 Moteurs pilotés via une **carte de contrôle moteur** (L298N) elle même controlé par par l’ESP32
 - 🎯 **Servomoteur** contrôlé par l’ESP32
 
 ---
@@ -49,7 +49,7 @@ Le robot est composé de deux microcontrôleurs communiquant via une **liaison s
 - ✅ Lecture et transmission des données capteurs
 - ✅ Géolocalisation GPS
 - ✅ Contrôle des moteurs
-- ✅ Contrôle des servomoteurs
+- ✅ Contrôle du servomoteur
 - ✅ Communication Wi-Fi avec le robot
 - 🔄 Extension possible (autonomie, interface web, IA, etc.)
 
