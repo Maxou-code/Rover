@@ -54,3 +54,15 @@ Le robot est composé de deux microcontrôleurs communiquant via une **liaison s
 - 🔄 Extension possible (autonomie, interface web, IA, etc.)
 
 ---
+
+## 🧩 Modèles 3D
+
+Les modèles 3D utilisés pour le robot **Rover** sont disponibles dans les **Releases GitHub**.
+
+📦 Ils se trouvent dans la section **`Solid`** de chaque release et incluent notamment :
+- Boîtier ESP32
+- Boîtier pour capteur ultrason
+- Support moteur
+- Support pour planche à pain
+
+Les fichiers sont fournis prêts à être **imprimés en 3D** et peuvent évoluer selon les versions du projet.
