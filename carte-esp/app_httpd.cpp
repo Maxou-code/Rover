@@ -20,6 +20,7 @@ int position_servo = 90;
 int speed = 150;
 
 int mod_move = 0;
+bool robot_fwd_val = false;
 
 extern int gpLed;
 
@@ -61,6 +62,7 @@ void robot_stop() {
   ledcWrite(LEFT_M1, 0);
   ledcWrite(RIGHT_M0, 0);
   ledcWrite(RIGHT_M1, 0);
+  robot_fwd_val = false;
 }
 
 void robot_fwd() {
@@ -74,9 +76,8 @@ void robot_fwd() {
   ledcWrite(LEFT_M1, speed);
   ledcWrite(RIGHT_M0, 0);
   ledcWrite(RIGHT_M1, speed);
+  robot_fwd_val = true;
 }
-
-
 
 void robot_back() {
   ledcWrite(LEFT_M0, speed);

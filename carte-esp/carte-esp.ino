@@ -35,6 +35,7 @@ extern int gpLed = 4;  // Light
 extern String WiFiAddr = "";
 
 extern int mod_move;
+extern bool robot_fwd_val;
 
 String data;
 
@@ -138,9 +139,10 @@ void loop() {
     return;
   }
 
-  if (mod_move == 1 && D1 <= 20) {
+  if (mod_move == 1 && D1 <= 20 && robot_fwd_val == true) {
     // STOP
     robot_stop();
+    robot_fwd_val = false;
     return;
   }
 }
