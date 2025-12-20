@@ -6,6 +6,7 @@
 
 ## 🔧 Modules de contrôle et motorisation
 - L298N (Driver moteur)
+- 4 moteurs 12V
 - Servomoteur 9g SG90
 
 ## 🧪 Capteurs
