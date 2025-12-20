@@ -55,6 +55,13 @@ Le robot est composé de deux microcontrôleurs communiquant via une **liaison s
 
 ---
 
+## ⚠️ Limitations
+- Autonomie limitée
+- Détection imprécise à courte distance
+- GPS peu précis en intérieur
+
+---
+
 ## 🧩 Modèles 3D
 
 Les modèles 3D utilisés pour le robot **Rover** sont disponibles dans les **Releases GitHub**.
