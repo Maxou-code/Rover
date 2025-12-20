@@ -43,10 +43,13 @@ void camera_right();
 void camera_center();
 
 void robot_setup() {
-  ledcAttach(LEFT_M0, 2000, 8);  /* 2000 hz PWM, 8-bit resolution and range from 0 to 255 */
-  ledcAttach(LEFT_M1, 2000, 8);  /* 2000 hz PWM, 8-bit resolution and range from 0 to 255 */
-  ledcAttach(RIGHT_M0, 2000, 8); /* 2000 hz PWM, 8-bit resolution and range from 0 to 255 */
-  ledcAttach(RIGHT_M1, 2000, 8); /* 2000 hz PWM, 8-bit resolution and range from 0 to 255 */
+  const int pwmFreq = 20000; // 20 kHz
+  const int pwmRes  = 8;     // 0–255
+
+  ledcAttach(LEFT_M0, pwmFreq, pwmRes);
+  ledcAttach(LEFT_M1, pwmFreq, pwmRes);
+  ledcAttach(RIGHT_M0, pwmFreq, pwmRes);
+  ledcAttach(RIGHT_M1, pwmFreq, pwmRes);
 
   Servo_CAM.setPeriodHertz(50);
   Servo_CAM.attach(Servo_CAM_PIN, 500, 2400);
@@ -67,17 +70,17 @@ void robot_stop() {
 
 void robot_fwd() {
   if (mod_move == 1 && D1 <= 20) {
-    // STOP
     robot_stop();
     return;
   }
-  
+
+  robot_fwd_val = true;
   ledcWrite(LEFT_M0, 0);
   ledcWrite(LEFT_M1, speed);
   ledcWrite(RIGHT_M0, 0);
   ledcWrite(RIGHT_M1, speed);
-  robot_fwd_val = true;
 }
+
 
 void robot_back() {
   ledcWrite(LEFT_M0, speed);

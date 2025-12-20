@@ -57,7 +57,7 @@ void setup() {
   pinMode(gpLed, OUTPUT);
   digitalWrite(gpLed, LOW);
 
-  // Désactive BT
+  // Désactive Bluetooth
   esp_bt_controller_disable();
   esp_bt_controller_deinit();
 
@@ -106,6 +106,7 @@ void setup() {
   sensor_t *s = esp_camera_sensor_get();
   s->set_framesize(s, FRAMESIZE_CIF);
 
+  // Initialisation Wi-Fi
   WiFi.softAP(ssid1, password1);
   IPAddress myIP = WiFi.softAPIP();
   Serial.print("AP IP address: ");
