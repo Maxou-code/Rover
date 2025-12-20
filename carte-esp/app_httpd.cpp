@@ -476,6 +476,8 @@ static esp_err_t index_handler(httpd_req_t *req) {
 
     .container .mode {
         background-color: orange;
+        width: 40px;
+        height: 40px;
     }
 
     .video {
