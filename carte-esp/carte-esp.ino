@@ -1,7 +1,8 @@
 #include "esp_camera.h"
+#include "esp_bt.h"
 #include <WiFi.h>
 
-// Select camera model
+// Sélectionnez le modèle de caméra
 #define CAMERA_MODEL_AI_THINKER
 const char *ssid1 = "Rover";
 const char *password1 = "12345678";
@@ -31,7 +32,9 @@ extern void robot_setup();
 #else
 #error "Camera model not selected"
 #endif
-extern int gpLed = 4;  // Light
+
+// Pin Lumière
+extern int gpLed = 4;
 extern String WiFiAddr = "";
 
 extern int mod_move;
@@ -51,9 +54,14 @@ void setup() {
   Serial.setDebugOutput(true);
   Serial.println();
   robot_setup();
-  pinMode(gpLed, OUTPUT);  //Light
+  pinMode(gpLed, OUTPUT);
   digitalWrite(gpLed, LOW);
 
+  // Désactive BT
+  esp_bt_controller_disable();
+  esp_bt_controller_deinit();
+
+  // Config Cam
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
@@ -75,7 +83,8 @@ void setup() {
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
-  //init with high specs to pre-allocate larger buffers
+
+  // Initialisation avec des spécifications élevées pour pré-allouer des buffers plus grands
   if (psramFound()) {
     config.frame_size = FRAMESIZE_UXGA;
     config.jpeg_quality = 10;
@@ -86,14 +95,14 @@ void setup() {
     config.fb_count = 1;
   }
 
-  // camera init
+  // Initialisation de la caméra
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
     Serial.printf("Camera init failed with error 0x%x", err);
     return;
   }
 
-  //drop down frame size for higher initial frame rate
+  // Réduire la taille d'image pour obtenir une fréquence d'images initiale plus élevée
   sensor_t *s = esp_camera_sensor_get();
   s->set_framesize(s, FRAMESIZE_CIF);
 
