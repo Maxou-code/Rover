@@ -39,3 +39,12 @@
 | 5V               | 5V Mega  | 5V               | 5V Mega  | 5V               | 5V Mega  | 5V               | 5V Mega  |
 | OUT              | A0 Mega  | OUT              | A1 Mega  | OUT              | A2 Mega  | OUT              | A3 Mega  |
 | GND              | GND Mega | GND              | GND Mega | GND              | GND Mega | GND              | GND Mega |
+
+## Autre
+
+| DHT | Port     | LED | Port     |
+| --- | -------- | --- | -------- |
+|     |          |     |          |
+| 5V  | 5V Mega  | IN  | 4        |
+| OUT | 2 Mega   | GND | GND Mega |
+| GND | GND Mega |     |          |
