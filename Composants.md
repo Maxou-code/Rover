@@ -20,3 +20,13 @@
 
 ## 🔋 Alimentation
 - 6 cellules Li-ion 18650
+
+# 🏗️ Composants mécaniques du robot
+
+- Châssis en carton
+- 5 boîtiers module ultrason
+- 1 boîtier ESP32
+- 4 roues
+- 1 bloc pour 3 cellules 18650
+- 1 bloc pour 2 cellules 18650
+- 1 bloc pour 1 cellule 18650
