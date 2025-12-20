@@ -21,19 +21,6 @@
 ## 🔋 Alimentation
 - 6 cellules Li-ion 18650
 
-### 🔌 Branchement
-
-| Port              |  Pin ESP32 | Pin ESP32   | Port     |
-|-------------------|------------|-------------|----------|
-| Moteur 5V         | 5V         | 3.3V        | X        |
-| Moteur GND        | GND        | IO16        | X        |
-| Moteur IN4        | IO12       | IO0         | X        |
-| Moteur IN3        | IO13       | GND         | GND Mega |
-| Moteur IN2        | IO15       | 3.3V / 5V   | X        |
-| Moteur IN1        | IO14       | RX          | TX Mega  |
-| Servo moteur      | IO2        | TX          | RX Mega  |
-| X                 | IO4        | GND         | X        |
-
 # 🏗️ Composants mécaniques du robot
 
 - Châssis en carton
