@@ -2,9 +2,10 @@
 #include "esp_timer.h"
 #include "esp_camera.h"
 #include "img_converters.h"
-#include "camera_index.h"
 #include "Arduino.h"
 #include <ESP32Servo.h>
+
+#include "camera_index.hpp"
 
 #define LEFT_M0 13
 #define LEFT_M1 12
