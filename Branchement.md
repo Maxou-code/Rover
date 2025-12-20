@@ -42,9 +42,10 @@
 
 ## Autre
 
-| DHT | Port     | LED | Port     |
-| --- | -------- | --- | -------- |
-|     |          |     |          |
-| 5V  | 5V Mega  | IN  | 4        |
-| OUT | 2 Mega   | GND | GND Mega |
-| GND | GND Mega |     |          |
+| DHT | Port     | LED | Port     | GPS  | Port     | Servo moteur | Port      |
+| --- | -------- | --- | -------- | ---- | -------- | ------------ | --------- |
+|     |          |     |          |      |          |              |           |
+| 5V  | 5V Mega  | IN  | 4        | 3,7V | EXT      | 5V           | 5V Mega   |
+| OUT | 2 Mega   | GND | GND Mega | RX   | TX1 Mega | IN           | IO2 ESP32 |
+| GND | GND Mega |     |          | TX   | RX1 Mega | GND          | GND Mega  |
+|     |          |     |          | GND  | EXT      |              |           |
