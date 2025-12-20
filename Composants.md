@@ -1,4 +1,4 @@
-# Composants électroniques du robot 🤖
+# 🤖 Composants électroniques du robot
 
 ## ⚡ Microcontrôleurs et modules principaux
 - ESP32-Cam 32S
