@@ -1,5 +1,3 @@
-// Coucou Samuel
-
 #include <DHT.h>
 #include <TinyGPS++.h>
 
