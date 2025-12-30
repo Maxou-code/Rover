@@ -7,8 +7,8 @@
 
 // Sélectionnez le modèle de caméra
 #define CAMERA_MODEL_AI_THINKER
-const char *ssid1 = "Rover";
-const char *password1 = "12345678";
+const char *ssiDistFront = "Rover";
+const char *passworDistFront = "12345678";
 
 extern void robot_stop();
 extern void robot_setup();
@@ -17,7 +17,7 @@ extern void robot_setup();
 #define PWDN_GPIO_NUM 32
 #define RESET_GPIO_NUM -1
 #define XCLK_GPIO_NUM 0
-#define SIOD_GPIO_NUM 26
+#define SIODistBackPIO_NUM 26
 #define SIOC_GPIO_NUM 27
 
 #define Y9_GPIO_NUM 35
@@ -43,7 +43,7 @@ String WiFiAddr = "";
 String data;
 
 // Variables
-int D1, D2, D3, D4, LumMoy, Temp, Hum;
+int DistFront, DistBack, DistRight, DistLeft, LumMoy, Temp, Hum;
 char latitude[20];
 char longitude[20];
 
@@ -77,7 +77,7 @@ void setup() {
   config.pin_pclk = PCLK_GPIO_NUM;
   config.pin_vsync = VSYNC_GPIO_NUM;
   config.pin_href = HREF_GPIO_NUM;
-  config.pin_sscb_sda = SIOD_GPIO_NUM;
+  config.pin_sscb_sda = SIODistBackPIO_NUM;
   config.pin_sscb_scl = SIOC_GPIO_NUM;
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
@@ -107,7 +107,7 @@ void setup() {
   s->set_framesize(s, FRAMESIZE_CIF);
 
   // Initialisation Wi-Fi
-  WiFi.softAP(ssid1, password1);
+  WiFi.softAP(ssiDistFront, passworDistFront);
   IPAddress myIP = WiFi.softAPIP();
   Serial.print("AP IP address: ");
   Serial.println(myIP);
@@ -162,7 +162,7 @@ void loop() {
     int parsed = sscanf(
       data.c_str(),
       "%d,%d,%d,%d,%d,%d,%d,%[^,],%s",
-      &D1, &D2, &D3, &D4,
+      &DistFront, &DistBack, &DistRight, &DistLeft,
       &LumMoy, &Temp, &Hum,
       latitude, longitude
     );
@@ -180,7 +180,7 @@ void loop() {
     return;
   }
 
-  if (mod_move == 1 && D1 <= 20 && robot_fwd_val == true) {
+  if (ModMove == 1 && DistFront <= 20 && robot_fwd_val == true) {
     // STOP
     robot_stop();
     robot_fwd_val = false;

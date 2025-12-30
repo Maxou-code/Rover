@@ -19,7 +19,7 @@ int position_servo = 90;
 
 int speed = 150;
 
-int mod_move = 0;
+int ModMove = 0;
 bool robot_fwd_val = false;
 
 void robot_setup();
@@ -61,7 +61,7 @@ void robot_stop() {
 }
 
 void robot_fwd() {
-  if (mod_move == 1 && D1 <= 20) {
+  if (ModMove == 1 && DistFront <= 20) {
     robot_stop();
     return;
   }
@@ -99,7 +99,7 @@ void camera_left() {
     position_servo += 10;
   }
   Servo_CAM.write(position_servo);
-  delay(20);
+  // delay(20);
 }
 
 void camera_right() {
@@ -107,13 +107,13 @@ void camera_right() {
     position_servo -= 10;
   }
   Servo_CAM.write(position_servo);
-  delay(20);
+  // delay(20);
 }
 
 void camera_center() {
   position_servo = 90;
   Servo_CAM.write(position_servo);
-  delay(20);
+  // delay(20);
 }
 
 void WheelAct(int nLf, int nLb, int nRf, int nRb);
@@ -396,7 +396,7 @@ static esp_err_t status_handler(httpd_req_t *req) {
   return httpd_resp_send(req, json_response, strlen(json_response));
 }
 
-// Chaine = D1, D2, D3, D4, LumMoy, Temp, Hum;
+// Chaine = DistFront, DistBack, DistRight, DistLeft, LumMoy, Temp, Hum;
 
 static esp_err_t index_handler(httpd_req_t *req) {
   httpd_resp_set_type(req, "text/html");
@@ -478,33 +478,49 @@ static esp_err_t cam_center_handler(httpd_req_t *req) {
 }
 
 static esp_err_t move_standart_handler(httpd_req_t *req) {
-  mod_move = 0;
+  ModMove = 0;
   Serial.println("MOD MOVE 0");
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, "OK", 2);
 }
 
 static esp_err_t move_stop_obstacle_handler(httpd_req_t *req) {
-  mod_move = 1;
+  ModMove = 1;
   Serial.println("MOD MOVE 1");
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, "OK", 2);
 }
 
+void escape_json(const char *in, char *out, size_t out_size) {
+  size_t j = 0;
+
+  for (size_t i = 0; in[i] && j + 2 < out_size; i++) {
+    if (in[i] == '"' || in[i] == '\\') {
+      out[j++] = '\\';
+    }
+    out[j++] = in[i];
+  }
+
+  out[j] = '\0';
+}
+
 static esp_err_t data_handler(httpd_req_t *req) {
-  String lat = String(latitude);
-  String lon = String(longitude);
+  static char json[256];
+  static char lat[32];
+  static char lon[32];
 
-  lat.replace("\"", "\\\"");
-  lon.replace("\"", "\\\"");
+  escape_json(latitude, lat, sizeof(lat));
+  escape_json(longitude, lon, sizeof(lon));
 
-  String json = "{\"Lat\":\"" + lat + "\",\"Lon\":\"" + lon + "\",\"Temp\":" + 
-    String(Temp) + ",\"Hum\":" + String(Hum) + ",\"LumMoy\":" + String(LumMoy) +
-    ",\"d1\":" + String(D1) + ",\"d2\":" + String(D2) + ",\"d3\":" + String(D3) + ",\"d4\":" +
-    String(D4) + ",\"mode\":" + String(mod_move) + "}";
+  snprintf(json, sizeof(json),
+    "{\"Lat\":\"%s\",\"Lon\":\"%s\",\"Temp\":%d,\"Hum\":%d,\"LumMoy\":%d,"
+    "\"DistFront\":%d,\"DistBack\":%d,\"DistRight\":%d,\"DistLeft\":%d,\"ModMove\":%d}",
+    lat, lon, Temp, Hum, LumMoy,
+    DistFront, DistBack, DistRight, DistLeft, ModMove
+  );
 
   httpd_resp_set_type(req, "application/json");
-  return httpd_resp_send(req, json.c_str(), json.length());
+  return httpd_resp_send(req, json, strlen(json));
 }
 
 void startCameraServer() {

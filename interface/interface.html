@@ -126,11 +126,11 @@
 				temp.textContent = data.Temp;
 				hum.textContent = data.Hum;
 				lum.textContent = data.LumMoy;
-				d1.textContent = data.d1;
-				d2.textContent = data.d2;
-				d3.textContent = data.d3;
-				d4.textContent = data.d4;
-				mode.textContent = data.mode;
+				dist_front.textContent = data.DistFront;
+				dist_back.textContent = data.DistBack;
+				dist_right.textContent = data.DistRight;
+				dist_left.textContent = data.DistLeft;
+				mod_move.textContent = data.ModMove;
 			}
 		};
 		xhttp.open("GET", "/data", true);
@@ -218,12 +218,12 @@
 			<h3>Température : <span id="temp">0</span>°C</h3>
 			<h3>Humidité : <span id="hum">0</span>%</h3>
 			<h3>Luminosité : <span id="lum">0</span></h3>
-			<h3>Distance avant : <span id="d1">0</span></h3>
-			<h3>Distance arrière : <span id="d2">0</span></h3>
-			<h3>Distance droite : <span id="d3">0</span></h3>
-			<h3>Distance gauche : <span id="d4">0</span></h3>
+			<h3>Distance avant : <span id="dist_front">0</span></h3>
+			<h3>Distance arrière : <span id="dist_back">0</span></h3>
+			<h3>Distance droite : <span id="dist_right">0</span></h3>
+			<h3>Distance gauche : <span id="dist_left">0</span></h3>
 			<br>
-			<h3>Mode : <span id="mode">0</span></h3>
+			<h3>Mode : <span id="mod_move">0</span></h3>
 			<p>
 				<button class="mode" onmousedown="getsend('mod_0')">0</button>
 				<button class="mode" onmousedown="getsend('mod_1')">1</button>
