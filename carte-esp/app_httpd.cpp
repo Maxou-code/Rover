@@ -2,10 +2,9 @@
 #include "esp_timer.h"
 #include "esp_camera.h"
 #include "img_converters.h"
-#include "Arduino.h"
 #include <ESP32Servo.h>
 
-#include "camera_index.hpp"
+#include <globals.hpp>
 
 #define LEFT_M0 13
 #define LEFT_M1 12
@@ -22,14 +21,6 @@ int speed = 150;
 
 int mod_move = 0;
 bool robot_fwd_val = false;
-
-extern int gpLed;
-
-extern String WiFiAddr;
-
-extern int D1, D2, D3, D4, LumMoy, Temp, Hum;
-extern char latitude[20];
-extern char longitude[20];
 
 void robot_setup();
 void robot_stop();
@@ -81,7 +72,6 @@ void robot_fwd() {
   ledcWrite(RIGHT_M0, 0);
   ledcWrite(RIGHT_M1, speed);
 }
-
 
 void robot_back() {
   ledcWrite(LEFT_M0, speed);
@@ -148,7 +138,7 @@ static const char *_STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %
 
 static ra_filter_t ra_filter;
 httpd_handle_t stream_httpd = NULL;
-httpd_handle_t camera_httpd = NULL;
+httpd_handle_t server_rover = NULL;
 
 static ra_filter_t *ra_filter_init(ra_filter_t *filter, size_t sample_size) {
   memset(filter, 0, sizeof(ra_filter_t));
@@ -410,265 +400,6 @@ static esp_err_t status_handler(httpd_req_t *req) {
 
 static esp_err_t index_handler(httpd_req_t *req) {
   httpd_resp_set_type(req, "text/html");
-
-  String page = R"rawliteral(
-<!DOCTYPE html>
-<html lang="fr">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Rover</title>
-    <style>
-    * {
-        font-family: Arial;
-        margin: 0;
-        padding: 0;
-    }
-
-    body {
-        display: flex;
-        justify-content: space-evenly;
-        align-items: center;
-        height: 100vh;
-        background: #2f2f2f;
-        flex-direction: column;
-    }
-
-    h1 {
-        color: white;
-    }
-
-    section {
-        display: flex;
-        width: 100%;
-        justify-content: space-evenly;
-    }
-
-    div {
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 8px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        gap: 15px;
-        padding: 15px;
-    }
-
-    button {
-        width: 140px;
-        height: 40px;
-        border-radius: 8px;
-        border: none;
-        font-weight: bold;
-        cursor: pointer;
-        transition: transform 0.1s ease-in-out;
-    }
-
-    button:active {
-        transform: scale(0.9);
-    }
-
-    .container {
-        color: white;
-        width: 300px;
-    }
-
-    .container .mode {
-        background-color: orange;
-        width: 40px;
-        height: 40px;
-    }
-
-    .video {
-        transform: rotate(180deg);
-        width: 720px;
-        border-radius: 8px;
-    }
-
-    .image {
-        text-align: center;
-    }
-
-    .image .orange {
-        background-color: orange;
-    }
-
-    .controls {
-        text-align: center;
-        width: 300px;
-    }
-
-    .controls .blue {
-        background-color: #0099FF;
-        width: 90px;
-        height: 80px;
-    }
-
-    .controls .red {
-        background-color: #FB4040;
-        width: 90px;
-        height: 80px;
-    }
-
-    .controls .yellow {
-        background-color: yellow;
-    }
-
-    /* Désactivation sélection texte */
-    .no-select {
-        user-select: none;
-        -webkit-user-select: none;
-        -ms-user-select: none;
-    }
-    </style>
-    <script>
-    function getsend(arg) {
-        var xhttp = new XMLHttpRequest();
-        xhttp.open('GET', arg + '?' + new Date().getTime(), true);
-        xhttp.send();
-    }
-
-    function updateData() {
-        var xhttp = new XMLHttpRequest();
-        xhttp.onreadystatechange = function() {
-            if (this.readyState == 4 && this.status == 200) {
-                let data = JSON.parse(this.responseText);
-                lat.textContent = data.Lat;
-                lon.textContent = data.Lon;
-                temp.textContent = data.Temp;
-                hum.textContent = data.Hum;
-                lum.textContent = data.LumMoy;
-                d1.textContent = data.d1;
-                d2.textContent = data.d2;
-                d3.textContent = data.d3;
-                d4.textContent = data.d4;
-                mode.textContent = data.mode;
-            }
-        };
-        xhttp.open("GET", "/data", true);
-        xhttp.send();
-    }
-
-    setInterval(updateData, 100);
-
-    document.addEventListener("keydown", function(event) {
-        switch (event.key) {
-            // Déplacements 
-            case "ArrowUp":
-                getsend("go");
-                break;
-            case "ArrowDown":
-                getsend("back");
-                break;
-            case "ArrowLeft":
-                getsend("left");
-                break;
-            case "ArrowRight":
-                getsend("right");
-                break;
-
-                // Espace = STOP immédiat
-            case " ":
-                getsend("stop");
-                break;
-
-                // Lumières            
-            case "l":
-            case "L":
-                getsend("ledon");
-                break;
-            case "m":
-            case "M":
-                getsend("ledoff");
-                break;
-
-                // Caméra 
-            case "f":
-            case "F":
-                getsend("cam_left");
-                break;
-            case "g":
-            case "G":
-                getsend("cam_center");
-                break;
-            case "h":
-            case "H":
-                getsend("cam_right");
-                break;
-
-                // Changement mode
-            case "à":
-            case "0":
-                getsend("mod_0");
-                break;
-            case "&":
-            case "1":
-                getsend("mod_1");
-                break;
-        }
-    });
-
-    document.addEventListener("keyup", function(event) {
-        switch (event.key) {
-            case "ArrowUp":
-            case "ArrowDown":
-            case "ArrowLeft":
-            case "ArrowRight":
-                getsend("stop");
-                break;
-        }
-    });
-    </script>
-</head>
-
-<body>
-    <h1>Rover</h1>
-    <section>
-        <div class="container no-select">
-            <h3>Latitude : <span id="lat">NC</span></h3>
-            <h3>Longitude : <span id="lon">NC</span></h3>
-            <h3>Température : <span id="temp">0</span>°C</h3>
-            <h3>Humidité : <span id="hum">0</span>%</h3>
-            <h3>Luminosité : <span id="lum">0</span></h3>
-            <h3>Distance avant : <span id="d1">0</span></h3>
-            <h3>Distance arrière : <span id="d2">0</span></h3>
-            <h3>Distance droite : <span id="d3">0</span></h3>
-            <h3>Distance gauche : <span id="d4">0</span></h3>
-            <br>
-            <h3>Mode : <span id="mode">0</span></h3>
-            <p>
-                <button class="mode" onmousedown="getsend('mod_0')">0</button>
-                <button class="mode" onmousedown="getsend('mod_1')">1</button>
-            </p>
-        </div>
-        <div class="image no-select">
-            <img src="http://)rawliteral" + WiFiAddr + R"rawliteral(:81/stream" class="video">
-            <p>
-                <button class="orange" onmousedown="getsend('cam_left')">Gauche</button>
-                <button class="orange" onmousedown="getsend('cam_center')">Centre</button>
-                <button class="orange" onmousedown="getsend('cam_right')">Droite</button>
-            </p>
-        </div>
-        <div class="controls no-select">
-            <p><button class="blue" onmousedown="getsend('go')" onmouseup="getsend('stop')">Avancer</button></p>
-            <p>
-                <button class="blue" onmousedown="getsend('left')" onmouseup="getsend('stop')">Gauche</button>
-                <button class="red" onmousedown="getsend('stop')">Stop</button>
-                <button class="blue" onmousedown="getsend('right')" onmouseup="getsend('stop')">Droite</button>
-            </p>
-            <p><button class="blue" onmousedown="getsend('back')" onmouseup="getsend('stop')">Reculer</button></p>
-            <p>
-                <button class="yellow" onmousedown="getsend('ledon')">Lumière ON</button>
-                <button class="yellow" onmousedown="getsend('ledoff')">Lumière OFF</button>
-            </p>
-        </div>
-    </section>
-</body>
-
-</html>
-    )rawliteral";
-
   return httpd_resp_send(req, &page[0], strlen(&page[0]));
 }
 
@@ -767,7 +498,10 @@ static esp_err_t data_handler(httpd_req_t *req) {
   lat.replace("\"", "\\\"");
   lon.replace("\"", "\\\"");
 
-  String json = "{\"Lat\":\"" + lat + "\",\"Lon\":\"" + lon + "\",\"Temp\":" + String(Temp) + ",\"Hum\":" + String(Hum) + ",\"LumMoy\":" + String(LumMoy) + ",\"d1\":" + String(D1) + ",\"d2\":" + String(D2) + ",\"d3\":" + String(D3) + ",\"d4\":" + String(D4) + ",\"mode\":" + String(mod_move) + "}";
+  String json = "{\"Lat\":\"" + lat + "\",\"Lon\":\"" + lon + "\",\"Temp\":" + 
+    String(Temp) + ",\"Hum\":" + String(Hum) + ",\"LumMoy\":" + String(LumMoy) +
+    ",\"d1\":" + String(D1) + ",\"d2\":" + String(D2) + ",\"d3\":" + String(D3) + ",\"d4\":" +
+    String(D4) + ",\"mode\":" + String(mod_move) + "}";
 
   httpd_resp_set_type(req, "application/json");
   return httpd_resp_send(req, json.c_str(), json.length());
@@ -802,27 +536,27 @@ void startCameraServer() {
   ra_filter_init(&ra_filter, 20);
   Serial.printf("Starting web server on port: '%d'\n", config.server_port);
 
-  if (httpd_start(&camera_httpd, &config) == ESP_OK) {
-    httpd_register_uri_handler(camera_httpd, &index_uri);
-    httpd_register_uri_handler(camera_httpd, &go_uri);
-    httpd_register_uri_handler(camera_httpd, &back_uri);
-    httpd_register_uri_handler(camera_httpd, &stop_uri);
-    httpd_register_uri_handler(camera_httpd, &left_uri);
-    httpd_register_uri_handler(camera_httpd, &right_uri);
-    httpd_register_uri_handler(camera_httpd, &ledon_uri);
-    httpd_register_uri_handler(camera_httpd, &ledoff_uri);
+  if (httpd_start(&server_rover, &config) == ESP_OK) {
+    httpd_register_uri_handler(server_rover, &index_uri);
+    httpd_register_uri_handler(server_rover, &go_uri);
+    httpd_register_uri_handler(server_rover, &back_uri);
+    httpd_register_uri_handler(server_rover, &stop_uri);
+    httpd_register_uri_handler(server_rover, &left_uri);
+    httpd_register_uri_handler(server_rover, &right_uri);
+    httpd_register_uri_handler(server_rover, &ledon_uri);
+    httpd_register_uri_handler(server_rover, &ledoff_uri);
 
-    httpd_register_uri_handler(camera_httpd, &cam_left_uri);
-    httpd_register_uri_handler(camera_httpd, &cam_right_uri);
-    httpd_register_uri_handler(camera_httpd, &cam_center_uri);
+    httpd_register_uri_handler(server_rover, &cam_left_uri);
+    httpd_register_uri_handler(server_rover, &cam_right_uri);
+    httpd_register_uri_handler(server_rover, &cam_center_uri);
 
-    httpd_register_uri_handler(camera_httpd, &mod_0_uri);
-    httpd_register_uri_handler(camera_httpd, &mod_1_uri);
+    httpd_register_uri_handler(server_rover, &mod_0_uri);
+    httpd_register_uri_handler(server_rover, &mod_1_uri);
 
-    httpd_register_uri_handler(camera_httpd, &status_uri);
-    httpd_register_uri_handler(camera_httpd, &cmd_uri);
-    httpd_register_uri_handler(camera_httpd, &capture_uri);
-    httpd_register_uri_handler(camera_httpd, &uri_data);
+    httpd_register_uri_handler(server_rover, &status_uri);
+    httpd_register_uri_handler(server_rover, &cmd_uri);
+    httpd_register_uri_handler(server_rover, &capture_uri);
+    httpd_register_uri_handler(server_rover, &uri_data);
     Serial.println("Web server started successfully.");
   } else {
     Serial.println("Failed to start web server.");

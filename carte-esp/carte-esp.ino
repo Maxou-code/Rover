@@ -3,6 +3,8 @@
 #include <WiFi.h>
 #include <ArduinoOTA.h>
 
+#include <globals.hpp>
+
 // Sélectionnez le modèle de caméra
 #define CAMERA_MODEL_AI_THINKER
 const char *ssid1 = "Rover";
@@ -35,11 +37,8 @@ extern void robot_setup();
 #endif
 
 // Pin Lumière
-extern int gpLed = 4;
-extern String WiFiAddr = "";
-
-extern int mod_move;
-extern bool robot_fwd_val;
+int gpLed = 4;
+String WiFiAddr = "";
 
 String data;
 
