@@ -1,6 +1,7 @@
 #include "esp_camera.h"
 #include "esp_bt.h"
 #include <WiFi.h>
+#include <ArduinoOTA.h>
 
 // Sélectionnez le modèle de caméra
 #define CAMERA_MODEL_AI_THINKER
@@ -116,6 +117,35 @@ void setup() {
   Serial.print(WiFi.softAPIP());
   WiFiAddr = WiFi.softAPIP().toString();
   Serial.println("' to connect");
+
+  // Configure OTA
+  ArduinoOTA.setHostname("ESP32_Rover");
+  ArduinoOTA.setPassword("123456");
+
+  ArduinoOTA.onStart([]() {
+    String type = (ArduinoOTA.getCommand() == U_FLASH) ? "sketch" : "filesystem";
+    Serial.println("OTA Start: updating " + type);
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("OTA End\n");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("OTA Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("OTA Error[%u]: ", error);
+    switch (error) {
+      case OTA_AUTH_ERROR: Serial.println("Auth Failed"); break;
+      case OTA_BEGIN_ERROR: Serial.println("Begin Failed"); break;
+      case OTA_CONNECT_ERROR: Serial.println("Connect Failed"); break;
+      case OTA_RECEIVE_ERROR: Serial.println("Receive Failed"); break;
+      case OTA_END_ERROR: Serial.println("End Failed"); break;
+    }
+  });
+
+  ArduinoOTA.begin();
+  Serial.println("OTA Ready");
+
   startCameraServer();
   digitalWrite(33, LOW);
 }
@@ -123,6 +153,8 @@ void setup() {
 unsigned long lastFrameTime = 0;
 
 void loop() {
+  ArduinoOTA.handle();
+  
   // Lecture série non bloquante
   if (Serial.available()) {
     String data = Serial.readStringUntil('\n');
