@@ -1,14 +1,14 @@
-#include "esp_camera.h"
-#include "esp_bt.h"
+#include <esp_camera.h>
+#include <esp_bt.h>
 #include <WiFi.h>
 #include <ArduinoOTA.h>
 
-#include <globals.hpp>
+#include "globals.hpp"
 
 // Sélectionnez le modèle de caméra
 #define CAMERA_MODEL_AI_THINKER
-const char *ssiDistFront = "Rover";
-const char *passworDistFront = "12345678";
+const char *ssid = "Rover";
+const char *password = "12345678";
 
 extern void robot_stop();
 extern void robot_setup();
@@ -38,14 +38,13 @@ extern void robot_setup();
 
 // Pin Lumière
 int gpLed = 4;
-String WiFiAddr = "";
-
-String data;
 
 // Variables
 int DistFront, DistBack, DistRight, DistLeft, LumMoy, Temp, Hum;
 char latitude[20];
 char longitude[20];
+
+unsigned long lastFrameTime = 0;
 
 void startCameraServer();
 
@@ -107,14 +106,15 @@ void setup() {
   s->set_framesize(s, FRAMESIZE_CIF);
 
   // Initialisation Wi-Fi
-  WiFi.softAP(ssiDistFront, passworDistFront);
-  IPAddress myIP = WiFi.softAPIP();
-  Serial.print("AP IP address: ");
-  Serial.println(myIP);
+  WiFi.softAP(ssid, password);
 
-  Serial.print("Camera Ready! Use 'http://");
-  Serial.print(WiFi.softAPIP());
-  WiFiAddr = WiFi.softAPIP().toString();
+  IPAddress ip = WiFi.softAPIP();
+
+  Serial.print("AP IP address: ");
+  Serial.println(ip);
+
+  Serial.print("Rover Ready! Use 'http://");
+  Serial.print(ip);
   Serial.println("' to connect");
 
   // Configure OTA
@@ -122,8 +122,10 @@ void setup() {
   ArduinoOTA.setPassword("123456");
 
   ArduinoOTA.onStart([]() {
-    String type = (ArduinoOTA.getCommand() == U_FLASH) ? "sketch" : "filesystem";
-    Serial.println("OTA Start: updating " + type);
+    const char* type = (ArduinoOTA.getCommand() == U_FLASH) ? "sketch" : "filesystem";
+
+    Serial.print("OTA Start: updating ");
+    Serial.println(type);
   });
   ArduinoOTA.onEnd([]() {
     Serial.println("OTA End\n");
@@ -146,32 +148,40 @@ void setup() {
   Serial.println("OTA Ready");
 
   startCameraServer();
-  digitalWrite(33, LOW);
 }
-
-unsigned long lastFrameTime = 0;
 
 void loop() {
   ArduinoOTA.handle();
-  
-  // Lecture série non bloquante
-  if (Serial.available()) {
-    String data = Serial.readStringUntil('\n');
-    data.trim(); // enlève \r et espaces
 
-    int parsed = sscanf(
-      data.c_str(),
-      "%d,%d,%d,%d,%d,%d,%d,%[^,],%s",
-      &DistFront, &DistBack, &DistRight, &DistLeft,
-      &LumMoy, &Temp, &Hum,
-      latitude, longitude
-    );
+  static char buffer[128];
+  static uint8_t index = 0;
 
-    if (parsed == 9) {
-      lastFrameTime = millis();  // trame valide reçue
-    } else {
-      Serial.println("Trame invalide !");
+  // Lecture série non bloquante caractère par caractère
+  while (Serial.available()) {
+    char c = Serial.read();
+
+    if (c == '\n') {
+      buffer[index] = '\0';  // fin de chaîne
+      index = 0;
+
+      int parsed = sscanf(
+        buffer,
+        "%d,%d,%d,%d,%d,%d,%d,%19[^,],%19s",
+        &DistFront, &DistBack, &DistRight, &DistLeft,
+        &LumMoy, &Temp, &Hum,
+        latitude, longitude
+      );
+
+      if (parsed == 9) {
+        lastFrameTime = millis();  // trame valide
+      } else {
+        Serial.println("Trame invalide !");
+      }
+
+    } else if (index < sizeof(buffer) - 1) {
+      buffer[index++] = c;
     }
+    // sinon : caractère ignoré (overflow évité)
   }
 
   // FAILSAFE : plus de trame depuis > 1200 ms
@@ -180,8 +190,8 @@ void loop() {
     return;
   }
 
+  // Sécurité obstacle
   if (ModMove == 1 && DistFront <= 20 && robot_fwd_val == true) {
-    // STOP
     robot_stop();
     robot_fwd_val = false;
     return;

@@ -1,10 +1,10 @@
-#include "esp_http_server.h"
-#include "esp_timer.h"
-#include "esp_camera.h"
-#include "img_converters.h"
+#include <esp_http_server.h>
+#include <esp_timer.h>
+#include <esp_camera.h>
+#include <img_converters.h>
 #include <ESP32Servo.h>
 
-#include <globals.hpp>
+#include "globals.hpp"
 
 #define LEFT_M0 13
 #define LEFT_M1 12
@@ -99,7 +99,6 @@ void camera_left() {
     position_servo += 10;
   }
   Servo_CAM.write(position_servo);
-  // delay(20);
 }
 
 void camera_right() {
@@ -107,16 +106,12 @@ void camera_right() {
     position_servo -= 10;
   }
   Servo_CAM.write(position_servo);
-  // delay(20);
 }
 
 void camera_center() {
   position_servo = 90;
   Servo_CAM.write(position_servo);
-  // delay(20);
 }
-
-void WheelAct(int nLf, int nLb, int nRf, int nRb);
 
 typedef struct {
   size_t size;   //number of values used for filtering
@@ -274,16 +269,21 @@ static esp_err_t stream_handler(httpd_req_t *req) {
     last_frame = fr_end;
     frame_time /= 1000;
     uint32_t avg_frame_time = ra_filter_run(&ra_filter, frame_time);
-    // Serial.printf("MJPG: %uB %ums (%.1ffps), AVG: %ums (%.1ffps)", (uint32_t)(_jpg_buf_len),
-    //               (uint32_t)frame_time, 1000.0 / (uint32_t)frame_time,
-    //               avg_frame_time, 1000.0 / avg_frame_time);
   }
 
   last_frame = 0;
   return res;
 }
 
+static void add_cors_headers(httpd_req_t *req) {
+	httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+	httpd_resp_set_hdr(req, "Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+	httpd_resp_set_hdr(req, "Access-Control-Allow-Headers", "Content-Type");
+	httpd_resp_set_hdr(req, "Access-Control-Max-Age", "86400");
+}
+
 static esp_err_t cmd_handler(httpd_req_t *req) {
+  add_cors_headers(req);
   char *buf;
   size_t buf_len;
   char variable[32] = {
@@ -355,56 +355,49 @@ static esp_err_t cmd_handler(httpd_req_t *req) {
     return httpd_resp_send_500(req);
   }
 
-  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
   return httpd_resp_send(req, NULL, 0);
 }
 
 static esp_err_t status_handler(httpd_req_t *req) {
-  static char json_response[1024];
+    add_cors_headers(req);
+    char json_response[512];  // suffit si pas trop de champs
+    sensor_t *s = esp_camera_sensor_get();
+    int len = snprintf(json_response, sizeof(json_response),
+        "{\"framesize\":%u,\"quality\":%u,\"brightness\":%d,\"contrast\":%d,"
+        "\"saturation\":%d,\"special_effect\":%u,\"wb_mode\":%u,\"awb\":%u,"
+        "\"awb_gain\":%u,\"aec\":%u,\"aec2\":%u,\"ae_level\":%d,\"aec_value\":%u,"
+        "\"agc\":%u,\"agc_gain\":%u,\"gainceiling\":%u,\"bpc\":%u,\"wpc\":%u,"
+        "\"raw_gma\":%u,\"lenc\":%u,\"hmirror\":%u,\"dcw\":%u,\"colorbar\":%u}",
+        s->status.framesize, s->status.quality, s->status.brightness, s->status.contrast,
+        s->status.saturation, s->status.special_effect, s->status.wb_mode, s->status.awb,
+        s->status.awb_gain, s->status.aec, s->status.aec2, s->status.ae_level, s->status.aec_value,
+        s->status.agc, s->status.agc_gain, s->status.gainceiling, s->status.bpc, s->status.wpc,
+        s->status.raw_gma, s->status.lenc, s->status.hmirror, s->status.dcw, s->status.colorbar
+    );
 
-  sensor_t *s = esp_camera_sensor_get();
-  char *p = json_response;
-  *p++ = '{';
+    if (len < 0) {
+        return httpd_resp_send_500(req);
+    }
 
-  p += sprintf(p, "\"framesize\":%u,", s->status.framesize);
-  p += sprintf(p, "\"quality\":%u,", s->status.quality);
-  p += sprintf(p, "\"brightness\":%d,", s->status.brightness);
-  p += sprintf(p, "\"contrast\":%d,", s->status.contrast);
-  p += sprintf(p, "\"saturation\":%d,", s->status.saturation);
-  p += sprintf(p, "\"special_effect\":%u,", s->status.special_effect);
-  p += sprintf(p, "\"wb_mode\":%u,", s->status.wb_mode);
-  p += sprintf(p, "\"awb\":%u,", s->status.awb);
-  p += sprintf(p, "\"awb_gain\":%u,", s->status.awb_gain);
-  p += sprintf(p, "\"aec\":%u,", s->status.aec);
-  p += sprintf(p, "\"aec2\":%u,", s->status.aec2);
-  p += sprintf(p, "\"ae_level\":%d,", s->status.ae_level);
-  p += sprintf(p, "\"aec_value\":%u,", s->status.aec_value);
-  p += sprintf(p, "\"agc\":%u,", s->status.agc);
-  p += sprintf(p, "\"agc_gain\":%u,", s->status.agc_gain);
-  p += sprintf(p, "\"gainceiling\":%u,", s->status.gainceiling);
-  p += sprintf(p, "\"bpc\":%u,", s->status.bpc);
-  p += sprintf(p, "\"wpc\":%u,", s->status.wpc);
-  p += sprintf(p, "\"raw_gma\":%u,", s->status.raw_gma);
-  p += sprintf(p, "\"lenc\":%u,", s->status.lenc);
-  p += sprintf(p, "\"hmirror\":%u,", s->status.hmirror);
-  p += sprintf(p, "\"dcw\":%u,", s->status.dcw);
-  p += sprintf(p, "\"colorbar\":%u", s->status.colorbar);
-  *p++ = '}';
-  *p++ = 0;
-  httpd_resp_set_type(req, "application/json");
-  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
-  return httpd_resp_send(req, json_response, strlen(json_response));
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json_response, len);
 }
 
 // Chaine = DistFront, DistBack, DistRight, DistLeft, LumMoy, Temp, Hum;
 
+static esp_err_t cors_options_handler(httpd_req_t *req) {
+	add_cors_headers(req);
+	return httpd_resp_send(req, NULL, 0);  // réponse vide
+}
+
 static esp_err_t index_handler(httpd_req_t *req) {
+  add_cors_headers(req);
   httpd_resp_set_type(req, "text/html");
-  return httpd_resp_send(req, &page[0], strlen(&page[0]));
+  return httpd_resp_send(req, page, HTTPD_RESP_USE_STRLEN);
 }
 
 static esp_err_t go_handler(httpd_req_t *req) {
-  //WheelAct(HIGH, LOW, HIGH, LOW);
+  add_cors_headers(req);
   robot_fwd();
   Serial.println("Go");
   httpd_resp_set_type(req, "text/html");
@@ -412,7 +405,7 @@ static esp_err_t go_handler(httpd_req_t *req) {
 }
 
 static esp_err_t back_handler(httpd_req_t *req) {
-  //WheelAct(LOW, HIGH, LOW, HIGH);
+  add_cors_headers(req);
   robot_back();
   Serial.println("Back");
   httpd_resp_set_type(req, "text/html");
@@ -420,14 +413,14 @@ static esp_err_t back_handler(httpd_req_t *req) {
 }
 
 static esp_err_t left_handler(httpd_req_t *req) {
-  //WheelAct(HIGH, LOW, LOW, HIGH);
+  add_cors_headers(req);
   robot_left();
   Serial.println("Left");
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, "OK", 2);
 }
 static esp_err_t right_handler(httpd_req_t *req) {
-  //WheelAct(LOW, HIGH, HIGH, LOW);
+  add_cors_headers(req);
   robot_right();
   Serial.println("Right");
   httpd_resp_set_type(req, "text/html");
@@ -435,7 +428,7 @@ static esp_err_t right_handler(httpd_req_t *req) {
 }
 
 static esp_err_t stop_handler(httpd_req_t *req) {
-  //WheelAct(LOW, LOW, LOW, LOW);
+  add_cors_headers(req);
   robot_stop();
   Serial.println("Stop");
   httpd_resp_set_type(req, "text/html");
@@ -443,6 +436,7 @@ static esp_err_t stop_handler(httpd_req_t *req) {
 }
 
 static esp_err_t ledon_handler(httpd_req_t *req) {
+  add_cors_headers(req);
   digitalWrite(gpLed, HIGH);
   Serial.println("LED ON");
   httpd_resp_set_type(req, "text/html");
@@ -450,6 +444,7 @@ static esp_err_t ledon_handler(httpd_req_t *req) {
 }
 
 static esp_err_t ledoff_handler(httpd_req_t *req) {
+  add_cors_headers(req);
   digitalWrite(gpLed, LOW);
   Serial.println("LED OFF");
   httpd_resp_set_type(req, "text/html");
@@ -457,6 +452,7 @@ static esp_err_t ledoff_handler(httpd_req_t *req) {
 }
 
 static esp_err_t cam_left_handler(httpd_req_t *req) {
+  add_cors_headers(req);
   camera_left();
   Serial.println("CAM LEFT");
   httpd_resp_set_type(req, "text/html");
@@ -464,6 +460,7 @@ static esp_err_t cam_left_handler(httpd_req_t *req) {
 }
 
 static esp_err_t cam_right_handler(httpd_req_t *req) {
+  add_cors_headers(req);
   camera_right();
   Serial.println("CAM RIGHT");
   httpd_resp_set_type(req, "text/html");
@@ -471,6 +468,7 @@ static esp_err_t cam_right_handler(httpd_req_t *req) {
 }
 
 static esp_err_t cam_center_handler(httpd_req_t *req) {
+  add_cors_headers(req);
   camera_center();
   Serial.println("CAM CENTER");
   httpd_resp_set_type(req, "text/html");
@@ -478,6 +476,7 @@ static esp_err_t cam_center_handler(httpd_req_t *req) {
 }
 
 static esp_err_t move_standart_handler(httpd_req_t *req) {
+  add_cors_headers(req);
   ModMove = 0;
   Serial.println("MOD MOVE 0");
   httpd_resp_set_type(req, "text/html");
@@ -485,6 +484,7 @@ static esp_err_t move_standart_handler(httpd_req_t *req) {
 }
 
 static esp_err_t move_stop_obstacle_handler(httpd_req_t *req) {
+  add_cors_headers(req);
   ModMove = 1;
   Serial.println("MOD MOVE 1");
   httpd_resp_set_type(req, "text/html");
@@ -505,6 +505,7 @@ void escape_json(const char *in, char *out, size_t out_size) {
 }
 
 static esp_err_t data_handler(httpd_req_t *req) {
+  add_cors_headers(req);
   static char json[256];
   static char lat[32];
   static char lon[32];
@@ -525,7 +526,7 @@ static esp_err_t data_handler(httpd_req_t *req) {
 
 void startCameraServer() {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-  config.max_uri_handlers = 18;  // Augmentation du nombre de routes
+  config.max_uri_handlers = 19;  // Augmentation du nombre de routes
 
   httpd_uri_t index_uri = { "/", HTTP_GET, index_handler, NULL };
   httpd_uri_t go_uri = { "/go", HTTP_GET, go_handler, NULL };
@@ -548,6 +549,8 @@ void startCameraServer() {
   httpd_uri_t capture_uri = { "/capture", HTTP_GET, capture_handler, NULL };
   httpd_uri_t uri_data = { "/data", HTTP_GET, data_handler, NULL };
   httpd_uri_t stream_uri = { "/stream", HTTP_GET, stream_handler, NULL };
+
+  httpd_uri_t options_uri = { "/*", HTTP_OPTIONS, cors_options_handler, NULL };
 
   ra_filter_init(&ra_filter, 20);
   Serial.printf("Starting web server on port: '%d'\n", config.server_port);
@@ -573,6 +576,8 @@ void startCameraServer() {
     httpd_register_uri_handler(server_rover, &cmd_uri);
     httpd_register_uri_handler(server_rover, &capture_uri);
     httpd_register_uri_handler(server_rover, &uri_data);
+
+    httpd_register_uri_handler(server_rover, &options_uri);
     Serial.println("Web server started successfully.");
   } else {
     Serial.println("Failed to start web server.");
