@@ -9,6 +9,9 @@
 - 4 moteurs 12V
 - Servomoteur 9g SG90
 
+- `TB6612FNG` (Futur Driver moteur)
+- `MP1584EN ` (Futur convertisseur 12V => 5V)
+
 ## 🧪 Capteurs
 - DHT22 (Température et humidité)
 - 4 photorésistances
