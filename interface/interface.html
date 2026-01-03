@@ -61,9 +61,11 @@ section {
     font-weight: bold;
 }
 
+.image { flex: 1; }
+
 .video {
     width: 100%;
-    max-width: 550px;
+    max-width: 750px;
     border-radius: 8px;
     transform: rotate(180deg);
 }
@@ -112,6 +114,9 @@ button:active {
 }
 </style>
 <script>
+
+let speedVal = 0;
+
 function getsend(arg) {
     fetch(arg + '?' + new Date().getTime());
 }
@@ -129,32 +134,112 @@ function updateData() {
         dist_left.textContent = data.DistLeft;
         mod_move.textContent = data.ModMove;
         speed.textContent = data.Speed;
+
+        speedVal = data.Speed;
     });
 }
 
 setInterval(updateData, 100);
 
-document.addEventListener("keydown", e => {
-    switch(e.key) {
-        case "ArrowUp": getsend("go"); break;
-        case "ArrowDown": getsend("back"); break;
-        case "ArrowLeft": getsend("left"); break;
-        case "ArrowRight": getsend("right"); break;
-        case " ": getsend("stop"); break;
-        case "l": case "L": getsend("ledon"); break;
-        case "m": case "M": getsend("ledoff"); break;
-        case "f": case "F": getsend("cam_left"); break;
-        case "g": case "G": getsend("cam_center"); break;
-        case "h": case "H": getsend("cam_right"); break;
-        case "à": case "0": getsend("mod_0"); break;
-        case "&": case "1": getsend("mod_1"); break;
-        case "s": getsend("up_speed"); break;
-        case "q": getsend("down_speed"); break;
+const keys = new Set();
+
+document.addEventListener("keydown", (e) => {
+
+    // Empêche le spam quand on garde une touche appuyée
+    if (e.repeat) return;
+
+    keys.add(e.key);
+
+    switch (e.key) {
+
+        case "ArrowUp":
+            getsend("go");
+            break;
+
+        case "ArrowDown":
+            getsend("back");
+            break;
+
+        case "ArrowLeft":
+            getsend("left");
+            break;
+
+        case "ArrowRight":
+            getsend("right");
+            break;
+
+        case " ":
+            getsend("stop");
+            break;
+
+        case "s":
+        case "S":
+            if (speedVal < 100) {
+                getsend("up_speed");
+                if (keys.has("ArrowUp")) {
+                    getsend("go");
+                }
+            } else if (keys.has("ArrowUp")) {
+                getsend("up_speed");
+                getsend("go");
+            }
+            break;
+
+        case "q":
+        case "Q":
+            if (speedVal > 50) {
+                getsend("down_speed");
+            }            
+
+            if (keys.has("ArrowUp")) {
+                getsend("go");
+            }
+            break;
+
+        case "l":
+        case "L":
+            getsend("ledon");
+            break;
+
+        case "m":
+        case "M":
+            getsend("ledoff");
+            break;
+
+        case "f":
+        case "F":
+            getsend("cam_left");
+            break;
+
+        case "g":
+        case "G":
+            getsend("cam_center");
+            break;
+
+        case "h":
+        case "H":
+            getsend("cam_right");
+            break;
+
+        case "à":
+        case "0":
+            getsend("mod_0");
+            break;
+
+        case "&":
+        case "1":
+            getsend("mod_1");
+            break;
     }
 });
 
-document.addEventListener("keyup", e => {
-    if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)) getsend("stop");
+document.addEventListener("keyup", (e) => {
+    keys.delete(e.key);
+
+    // Si une touche de déplacement est relâchée → stop
+    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        getsend("stop");
+    }
 });
 </script>
 </head>
