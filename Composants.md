@@ -7,7 +7,6 @@
 ## 🔧 Modules de contrôle et motorisation
 - 4 moteurs 12V
 - Servomoteur 9g SG90
-
 - `TB6612FNG` (Driver moteur)
 
 ## 🧪 Capteurs
