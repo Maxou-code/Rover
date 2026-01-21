@@ -5,12 +5,11 @@
 - Arduino Mega 2560
 
 ## 🔧 Modules de contrôle et motorisation
-- L298N (Driver moteur)
 - 4 moteurs 12V
 - Servomoteur 9g SG90
 
-- `TB6612FNG` (Futur Driver moteur)
-- `MP1584EN ` (Futur convertisseur 12V => 5V)
+- `TB6612FNG` (Driver moteur)
+- `MP1584EN` (Convertisseur 12V => 5V)
 
 ## 🧪 Capteurs
 - DHT22 (Température et humidité)
@@ -31,5 +30,3 @@
 - 1 boîtier ESP32
 - 4 roues
 - 1 bloc pour 3 cellules 18650
-- 1 bloc pour 2 cellules 18650
-- 1 bloc pour 1 cellule 18650

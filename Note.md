@@ -84,7 +84,7 @@ Ce document présente les principales améliorations matérielles nécessaires a
 
 ---
 
-## ⚡ 5. Remplacement du driver moteur L298N (priorité critique)
+## ⚡ 5. Remplacement du driver moteur L298N (priorité critique) `✅ FAIT`
 
 ### Limites du L298N
 - Très mauvais rendement (< 50%)
@@ -115,7 +115,7 @@ Ce document présente les principales améliorations matérielles nécessaires a
 
 ---
 
-## ✅ Conclusion
+## 📖 Conclusion
 
 Ces améliorations permettront :
 - Une **meilleure autonomie**

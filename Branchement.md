@@ -1,4 +1,4 @@
-# 🔌 Branchement
+# 🔌 Branchement 🚧 NON MIS A JOUR DEPUIS LA TRANSITION L298N => TB6612FNG 🚧
 
 ## ESP32
 
