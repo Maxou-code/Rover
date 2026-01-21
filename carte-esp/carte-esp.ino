@@ -2,6 +2,7 @@
 #include <esp_bt.h>
 #include <WiFi.h>
 #include <ArduinoOTA.h>
+#include <HardwareSerial.h>
 
 #include "globals.hpp"
 
@@ -17,7 +18,7 @@ extern void robot_setup();
 #define PWDN_GPIO_NUM 32
 #define RESET_GPIO_NUM -1
 #define XCLK_GPIO_NUM 0
-#define SIODistBackPIO_NUM 26
+#define SIOD_GPIO_NUM 26
 #define SIOC_GPIO_NUM 27
 
 #define Y9_GPIO_NUM 35
@@ -36,6 +37,8 @@ extern void robot_setup();
 #error "Camera model not selected"
 #endif
 
+HardwareSerial SerialMega(2);
+
 // Pin Lumière
 int gpLed = 4;
 
@@ -52,7 +55,12 @@ void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
   Serial.println();
+  Serial.println("Start setup");
+
+  SerialMega.begin(115200, SERIAL_8N1, 14, 15);
+
   robot_setup();
+
   pinMode(gpLed, OUTPUT);
   digitalWrite(gpLed, LOW);
 
@@ -60,92 +68,9 @@ void setup() {
   esp_bt_controller_disable();
   esp_bt_controller_deinit();
 
-  // Config Cam
-  camera_config_t config;
-  config.ledc_channel = LEDC_CHANNEL_0;
-  config.ledc_timer = LEDC_TIMER_0;
-  config.pin_d0 = Y2_GPIO_NUM;
-  config.pin_d1 = Y3_GPIO_NUM;
-  config.pin_d2 = Y4_GPIO_NUM;
-  config.pin_d3 = Y5_GPIO_NUM;
-  config.pin_d4 = Y6_GPIO_NUM;
-  config.pin_d5 = Y7_GPIO_NUM;
-  config.pin_d6 = Y8_GPIO_NUM;
-  config.pin_d7 = Y9_GPIO_NUM;
-  config.pin_xclk = XCLK_GPIO_NUM;
-  config.pin_pclk = PCLK_GPIO_NUM;
-  config.pin_vsync = VSYNC_GPIO_NUM;
-  config.pin_href = HREF_GPIO_NUM;
-  config.pin_sscb_sda = SIODistBackPIO_NUM;
-  config.pin_sscb_scl = SIOC_GPIO_NUM;
-  config.pin_pwdn = PWDN_GPIO_NUM;
-  config.pin_reset = RESET_GPIO_NUM;
-  config.xclk_freq_hz = 20000000;
-  config.pixel_format = PIXFORMAT_JPEG;
-
-  // Initialisation avec des spécifications élevées pour pré-allouer des buffers plus grands
-  if (psramFound()) {
-    config.frame_size = FRAMESIZE_UXGA;
-    config.jpeg_quality = 10;
-    config.fb_count = 2;
-  } else {
-    config.frame_size = FRAMESIZE_SVGA;
-    config.jpeg_quality = 12;
-    config.fb_count = 1;
-  }
-
-  // Initialisation de la caméra
-  esp_err_t err = esp_camera_init(&config);
-  if (err != ESP_OK) {
-    Serial.printf("Camera init failed with error 0x%x", err);
-    return;
-  }
-
-  // Réduire la taille d'image pour obtenir une fréquence d'images initiale plus élevée
-  sensor_t *s = esp_camera_sensor_get();
-  s->set_framesize(s, FRAMESIZE_CIF);
-
-  // Initialisation Wi-Fi
-  WiFi.softAP(ssid, password);
-
-  IPAddress ip = WiFi.softAPIP();
-
-  Serial.print("AP IP address: ");
-  Serial.println(ip);
-
-  Serial.print("Rover Ready! Use 'http://");
-  Serial.print(ip);
-  Serial.println("' to connect");
-
-  // Configure OTA
-  ArduinoOTA.setHostname("ESP32_Rover");
-  ArduinoOTA.setPassword("123456");
-
-  ArduinoOTA.onStart([]() {
-    const char* type = (ArduinoOTA.getCommand() == U_FLASH) ? "sketch" : "filesystem";
-
-    Serial.print("OTA Start: updating ");
-    Serial.println(type);
-  });
-  ArduinoOTA.onEnd([]() {
-    Serial.println("OTA End\n");
-  });
-  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    Serial.printf("OTA Progress: %u%%\r", (progress / (total / 100)));
-  });
-  ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("OTA Error[%u]: ", error);
-    switch (error) {
-      case OTA_AUTH_ERROR: Serial.println("Auth Failed"); break;
-      case OTA_BEGIN_ERROR: Serial.println("Begin Failed"); break;
-      case OTA_CONNECT_ERROR: Serial.println("Connect Failed"); break;
-      case OTA_RECEIVE_ERROR: Serial.println("Receive Failed"); break;
-      case OTA_END_ERROR: Serial.println("End Failed"); break;
-    }
-  });
-
-  ArduinoOTA.begin();
-  Serial.println("OTA Ready");
+  camera_setup();
+  wifi_setup();
+  ota_setup();
 
   startCameraServer();
 }
@@ -157,8 +82,8 @@ void loop() {
   static uint8_t index = 0;
 
   // Lecture série non bloquante caractère par caractère
-  while (Serial.available()) {
-    char c = Serial.read();
+  while (SerialMega.available()) {
+    char c = SerialMega.read();
 
     if (c == '\n') {
       buffer[index] = '\0';  // fin de chaîne
@@ -196,4 +121,100 @@ void loop() {
     robot_fwd_val = false;
     return;
   }
+}
+
+void camera_setup() {
+  // Config Cam
+  camera_config_t config;
+  config.ledc_channel = LEDC_CHANNEL_0;
+  config.ledc_timer = LEDC_TIMER_0;
+  config.pin_d0 = Y2_GPIO_NUM;
+  config.pin_d1 = Y3_GPIO_NUM;
+  config.pin_d2 = Y4_GPIO_NUM;
+  config.pin_d3 = Y5_GPIO_NUM;
+  config.pin_d4 = Y6_GPIO_NUM;
+  config.pin_d5 = Y7_GPIO_NUM;
+  config.pin_d6 = Y8_GPIO_NUM;
+  config.pin_d7 = Y9_GPIO_NUM;
+  config.pin_xclk = XCLK_GPIO_NUM;
+  config.pin_pclk = PCLK_GPIO_NUM;
+  config.pin_vsync = VSYNC_GPIO_NUM;
+  config.pin_href = HREF_GPIO_NUM;
+  config.pin_sscb_sda = SIOD_GPIO_NUM;
+  config.pin_sscb_scl = SIOC_GPIO_NUM;
+  config.pin_pwdn = PWDN_GPIO_NUM;
+  config.pin_reset = RESET_GPIO_NUM;
+  config.xclk_freq_hz = 20000000;
+  config.pixel_format = PIXFORMAT_JPEG;
+
+  // PSRAM ?
+  if (psramFound()) {
+    config.frame_size = FRAMESIZE_UXGA;
+    config.jpeg_quality = 10;
+    config.fb_count = 2;
+  } else {
+    config.frame_size = FRAMESIZE_SVGA;
+    config.jpeg_quality = 12;
+    config.fb_count = 1;
+  }
+
+  // Init caméra
+  esp_err_t err = esp_camera_init(&config);
+  if (err != ESP_OK) {
+    Serial.printf("Camera init failed with error 0x%x\n", err);
+    return;
+  }
+
+  // Taille réduite pour plus de FPS au démarrage
+  sensor_t *s = esp_camera_sensor_get();
+  s->set_framesize(s, FRAMESIZE_CIF);
+}
+
+void wifi_setup() {
+  WiFi.softAP(ssid, password);
+  IPAddress ip = WiFi.softAPIP();
+
+  Serial.print("AP IP address: ");
+  Serial.println(ip);
+
+  Serial.print("Rover Ready! Use 'http://");
+  Serial.print(ip);
+  Serial.println("' to connect");
+}
+
+void ota_setup() {
+  ArduinoOTA.setHostname("ESP32_Rover");
+  ArduinoOTA.setPassword("123456");
+
+  ArduinoOTA.onStart([]() {
+    const char* type =
+      (ArduinoOTA.getCommand() == U_FLASH) ? "sketch" : "filesystem";
+    Serial.print("OTA Start: updating ");
+    Serial.println(type);
+  });
+
+  ArduinoOTA.onEnd([]() {
+    Serial.println("OTA End\n");
+  });
+
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf(
+      "OTA Progress: %u%%\r",
+      (progress * 100) / total
+    );
+  });
+
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("OTA Error[%u]: ", error);
+    switch (error) {
+      case OTA_AUTH_ERROR:    Serial.println("Auth Failed"); break;
+      case OTA_BEGIN_ERROR:   Serial.println("Begin Failed"); break;
+      case OTA_CONNECT_ERROR: Serial.println("Connect Failed"); break;
+      case OTA_RECEIVE_ERROR: Serial.println("Receive Failed"); break;
+      case OTA_END_ERROR:     Serial.println("End Failed"); break;
+    }
+  });
+
+  ArduinoOTA.begin();
+  Serial.println("OTA Ready");
 }

@@ -1,6 +1,9 @@
 #pragma once
 
 #include <Arduino.h>
+#include <HardwareSerial.h>
+
+extern HardwareSerial SerialMega;
 
 extern int gpLed;
 
