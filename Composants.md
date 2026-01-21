@@ -9,7 +9,6 @@
 - Servomoteur 9g SG90
 
 - `TB6612FNG` (Driver moteur)
-- `MP1584EN` (Convertisseur 12V => 5V)
 
 ## 🧪 Capteurs
 - DHT22 (Température et humidité)
@@ -22,6 +21,7 @@
 
 ## 🔋 Alimentation
 - 6 cellules Li-ion 18650
+- `MP1584EN` (Convertisseur 12V => 5V)
 
 # 🏗️ Composants mécaniques du robot
 
@@ -29,4 +29,4 @@
 - 5 boîtiers module ultrason
 - 1 boîtier ESP32
 - 4 roues
-- 1 bloc pour 3 cellules 18650
+- 2 bloc pour 3 cellules 18650 (3S2P)
