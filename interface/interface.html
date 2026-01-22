@@ -89,6 +89,10 @@ button:active {
     transform: scale(0.9);
 }
 
+p {
+    font-size: 18px;
+}
+
 /* Couleurs et tailles */
 .mode { background-color: orange; width: 40px; height: 40px; }
 .blue { background-color: #0099FF; width: 75px; height: 70px; }
@@ -248,19 +252,19 @@ document.addEventListener("keyup", (e) => {
 <section>
     <!-- Informations -->
     <div class="card no-select">
-        <fieldset><legend>Capteurs</legend>
-            <h3>Latitude : <span id="lat">NC</span></h3>
-            <h3>Longitude : <span id="lon">NC</span></h3>
-            <h3>Température : <span id="temp">0</span>°C</h3>
-            <h3>Humidité : <span id="hum">0</span>%</h3>
-            <h3>Luminosité : <span id="lum">0</span></h3>
-            <h3>Distance avant : <span id="dist_front">0</span></h3>
-            <h3>Distance arrière : <span id="dist_back">0</span></h3>
-            <h3>Distance droite : <span id="dist_right">0</span></h3>
-            <h3>Distance gauche : <span id="dist_left">0</span></h3>
+        <fieldset style="display: flex;flex-direction: column;gap: 5px;"><legend>Capteurs</legend>
+            <p>Latitude : <span id="lat">NC</span></p>
+            <p>Longitude : <span id="lon">NC</span></p>
+            <p>Température : <span id="temp">0</span>°C</p>
+            <p>Humidité : <span id="hum">0</span>%</p>
+            <p>Luminosité : <span id="lum">0</span> Lux</p>
+            <p>Distance avant : <span id="dist_front">0</span> cm</p>
+            <p>Distance arrière : <span id="dist_back">0</span> cm</p>
+            <p>Distance droite : <span id="dist_right">0</span> cm</p>
+            <p>Distance gauche : <span id="dist_left">0</span> cm</p>
         </fieldset>
         <fieldset><legend>Mode de déplacement</legend>
-            <h3>Mode : <span id="mod_move">0</span></h3>
+            <p>Mode : <span id="mod_move">0</span></p>
             <div class="button-row">
                 <button class="mode" onmousedown="getsend('mod_0')">0</button>
                 <button class="mode" onmousedown="getsend('mod_1')">1</button>
@@ -292,7 +296,7 @@ document.addEventListener("keyup", (e) => {
             <button class="blue" onmousedown="getsend('back')" onmouseup="getsend('stop')">Reculer</button>
         </div>
         <div class="speed-control">
-            <h3>Vitesse : <span id="speed">0</span></h3>
+            <p>Vitesse : <span id="speed">0</span></p>
             <div class="button-row">
                 <button class="orange" onmousedown="getsend('down_speed')">-</button>
                 <button class="orange" onmousedown="getsend('up_speed')">+</button>

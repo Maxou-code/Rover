@@ -1,6 +1,8 @@
 #include <DHT.h>
 #include <TinyGPS++.h>
 #include <Servo.h>
+#include <Arduino.h>
+#include <math.h>
 
 TinyGPSPlus gps;
 
@@ -63,15 +65,83 @@ const unsigned long SENSOR_INTERVAL = 500;  // ms
 char serial2Buffer[64];
 uint8_t serial2Index = 0;
 
+unsigned long lastSensorTime = 0; // Temps de la dernière lecture
+const unsigned long sensorInterval = 50; // Intervalle en ms
+int sensorIndex = 0;
+
+const int PHOTO_SAMPLES = 10; // Nombre de lectures pour la moyenne glissante
+
+int photo1Buffer[PHOTO_SAMPLES] = {0};
+int photo2Buffer[PHOTO_SAMPLES] = {0};
+int photo3Buffer[PHOTO_SAMPLES] = {0};
+int photo4Buffer[PHOTO_SAMPLES] = {0};
+int photoIndex = 0;
+
+// Fonction pour convertir la valeur analogique en lux
+int analogToLux(int val) {
+    if (val <= 0) return 0; // éviter division par zéro
+
+    const float R_FIXED = 10000.0;  // Résistance fixe du diviseur (10kΩ)
+    const float K = 500000.0;       // Constante typique de la LDR (ohms)
+    const float ALPHA = 0.7;        // Exposant typique
+
+    // Calcul de la tension lue
+    float Vout = val * 5.0 / 1023.0;
+
+    // Calcul de la résistance de la LDR
+    float R_LDR = R_FIXED * (5.0 - Vout) / Vout;
+
+    // Conversion résistance → lux
+    float lux = pow(K / R_LDR, 1.0 / ALPHA);
+
+    return (int)lux;  // renvoie un entier
+}
+
 int Distance_test(int trig, int echo) {
-  digitalWrite(trig, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trig, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trig, LOW);
-  long duration = pulseIn(echo, HIGH, 25000);  // ~4m max
-  if (duration == 0) return -1;
-  return duration / 58;
+    const int N = 5; // nombre de mesures
+    int mesures[N];
+
+    // prendre N mesures
+    for (int i = 0; i < N; i++) {
+        digitalWrite(trig, LOW);
+        delayMicroseconds(2);
+        digitalWrite(trig, HIGH);
+        delayMicroseconds(10);
+        digitalWrite(trig, LOW);
+        long duration = pulseIn(echo, HIGH, 25000);
+        if (duration == 0) mesures[i] = -1; 
+        else mesures[i] = duration / 58;
+        delay(5);
+    }
+
+    // compter les valeurs valides
+    int valid[N];
+    int count = 0;
+    for (int i = 0; i < N; i++) {
+        if (mesures[i] != -1) {
+            valid[count++] = mesures[i];
+        }
+    }
+
+    if (count == 0) return -1; // aucune mesure valide
+
+    // tri simple à bulles
+    for (int i = 0; i < count - 1; i++) {
+        for (int j = 0; j < count - i - 1; j++) {
+            if (valid[j] > valid[j + 1]) {
+                int tmp = valid[j];
+                valid[j] = valid[j + 1];
+                valid[j + 1] = tmp;
+            }
+        }
+    }
+
+    // retourner la médiane
+    if (count % 2 == 1) {
+        return valid[count / 2];
+    } else {
+        return (valid[count / 2 - 1] + valid[count / 2]) / 2;
+    }
 }
 
 void setup() {
@@ -174,14 +244,82 @@ void updateMotors() {
 }
 
 void updateSensors() {
-  Distance_AD = Distance_test(Trig_Capteur_US_AD, Echo_Capteur_US_AD);
-  Distance_Ar = Distance_test(Trig_Capteur_US_Ar, Echo_Capteur_US_Ar);
-  Distance_D = Distance_test(Trig_Capteur_US_D, Echo_Capteur_US_D);
-  Distance_G = Distance_test(Trig_Capteur_US_G, Echo_Capteur_US_G);
-  Distance_AG = Distance_test(Trig_Capteur_US_AG, Echo_Capteur_US_AG);
+  unsigned long currentMillis = millis();
 
-  Distance_A = (Distance_AD < Distance_AG) ? Distance_AD : Distance_AG;
+  // Lire le capteur suivant si 50 ms se sont écoulées
+  if (currentMillis - lastSensorTime >= sensorInterval) {
+    lastSensorTime = currentMillis;
 
+    switch(sensorIndex) {
+      case 0:
+        Distance_AD = Distance_test(Trig_Capteur_US_AD, Echo_Capteur_US_AD);
+        break;
+      case 1:
+        Distance_Ar = Distance_test(Trig_Capteur_US_Ar, Echo_Capteur_US_Ar);
+        break;
+      case 2:
+        Distance_D = Distance_test(Trig_Capteur_US_D, Echo_Capteur_US_D);
+        break;
+      case 3:
+        Distance_G = Distance_test(Trig_Capteur_US_G, Echo_Capteur_US_G);
+        break;
+      case 4:
+        Distance_AG = Distance_test(Trig_Capteur_US_AG, Echo_Capteur_US_AG);
+        break;
+    }
+
+    sensorIndex++;
+    if (sensorIndex > 4) sensorIndex = 0; // Repartir du début
+  }
+
+  // Calcul de Distance_A
+  Distance_A =
+      (Distance_AD == -1) ? Distance_AG :
+      (Distance_AG == -1) ? Distance_AD :
+      (Distance_AD < Distance_AG ? Distance_AD : Distance_AG);
+
+  // --- Lecture des photos avec moyenne glissante ---
+  photo1Buffer[photoIndex] = analogRead(photo_1);
+  photo2Buffer[photoIndex] = analogRead(photo_2);
+  photo3Buffer[photoIndex] = analogRead(photo_3);
+  photo4Buffer[photoIndex] = analogRead(photo_4);
+
+  photoIndex = (photoIndex + 1) % PHOTO_SAMPLES; // passer à l'indice suivant
+
+  // Calcul des moyennes
+  long sum1 = 0, sum2 = 0, sum3 = 0, sum4 = 0;
+  for (int i = 0; i < PHOTO_SAMPLES; i++) {
+      sum1 += photo1Buffer[i];
+      sum2 += photo2Buffer[i];
+      sum3 += photo3Buffer[i];
+      sum4 += photo4Buffer[i];
+  }
+
+  val_photo_1 = sum1 / PHOTO_SAMPLES;
+  val_photo_2 = sum2 / PHOTO_SAMPLES;
+  val_photo_3 = sum3 / PHOTO_SAMPLES;
+  val_photo_4 = sum4 / PHOTO_SAMPLES;
+
+  // Calcul de la valeur moyenne des 4 LDR
+  val_photo_moyen = (val_photo_1 + val_photo_2 + val_photo_3 + val_photo_4) / 4;
+
+  // Conversion en lux
+  val_photo_moyen = analogToLux(val_photo_moyen);
+
+  // Lecture DHT
+  temp = dht.readTemperature();
+  hum = dht.readHumidity();
+
+  // GPS
+  while (Serial1.available()) {
+    gps.encode(Serial1.read());
+    if (gps.location.isUpdated()) {
+      lat = gps.location.lat();
+      lng = gps.location.lng();
+    }
+  }
+
+  // Envoi des données
   Serial2.print(Distance_A);
   Serial2.print(",");
   Serial2.print(Distance_Ar);
@@ -190,32 +328,12 @@ void updateSensors() {
   Serial2.print(",");
   Serial2.print(Distance_G);
   Serial2.print(",");
-
-  val_photo_1 = analogRead(photo_1);
-  val_photo_2 = analogRead(photo_2);
-  val_photo_3 = analogRead(photo_3);
-  val_photo_4 = analogRead(photo_4);
-  val_photo_moyen = (val_photo_1 + val_photo_2 + val_photo_3 + val_photo_4) / 4;
   Serial2.print(val_photo_moyen);
   Serial2.print(",");
-
-  temp = dht.readTemperature();
-  hum = dht.readHumidity();
-
   Serial2.print(temp, 0);
   Serial2.print(",");
   Serial2.print(hum, 0);
   Serial2.print(",");
-
-  while (Serial1.available()) {
-    gps.encode(Serial1.read());  // Traitement des données GPS
-
-    if (gps.location.isUpdated()) {
-      lat = gps.location.lat();
-      lng = gps.location.lng();
-    }
-  }
-
   printDMS(lat, true);
   Serial2.print(",");
   printDMS(lng, false);
