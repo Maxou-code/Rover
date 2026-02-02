@@ -1,312 +1,384 @@
 <!-- html-minifier-terser interface.html --collapse-whitespace --remove-comments --remove-optional-tags --remove-redundant-attributes --remove-script-type-attributes --remove-style-link-type-attributes --minify-css true --minify-js true -o interface.min.html -->
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-<title>Rover</title>
-<style>
-* {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+	<title>Rover</title>
+	<style>
+	* {
+		font-family: Arial, sans-serif;
+		margin: 0;
+		padding: 0;
+		box-sizing: border-box;
+	}
 
-body {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    min-height: 100vh;
-    background: #2f2f2f;
-    color: #fff;
-    padding: 20px;
-    gap: 20px;
-}
+	body {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: flex-start;
+		min-height: 100vh;
+		background: #2f2f2f;
+		color: #fff;
+		padding: 20px;
+		gap: 20px;
+	}
 
-h1 {
-    margin-bottom: 20px;
-}
+	h1 {
+		margin-bottom: 20px;
+	}
 
-section {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    justify-content: center;
-    width: 100%;
-}
+	section {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 20px;
+		justify-content: center;
+		width: 100%;
+	}
 
-.card {
-    background: rgba(0,0,0,0.3);
-    border-radius: 10px;
-    padding: 15px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    min-width: 280px;
-}
+	.card {
+		background: rgba(0, 0, 0, 0.3);
+		border-radius: 10px;
+		padding: 15px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 10px;
+		min-width: 280px;
+	}
 
-.card fieldset {
-    border: 1px solid #555;
-    border-radius: 8px;
-    margin-bottom: 15px;
-    padding: 10px 15px;
-    width: 100%;
-}
+	.card fieldset {
+		border: 1px solid #555;
+		border-radius: 8px;
+		margin-bottom: 15px;
+		padding: 10px 15px;
+		width: 100%;
+	}
 
-.card legend {
-    padding: 0 10px;
-    font-weight: bold;
-}
+	.card legend {
+		padding: 0 10px;
+		font-weight: bold;
+	}
 
-.image { flex: 1; }
+	.image {
+		flex: 1;
+	}
 
-.video {
-    width: 100%;
-    max-width: 750px;
-    border-radius: 8px;
-    transform: rotate(180deg);
-}
+	.video {
+		width: 100%;
+		max-width: 750px;
+		border-radius: 8px;
+		transform: rotate(180deg);
+	}
 
-.button-row {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    justify-content: center;
-}
+	.button-row {
+		display: flex;
+		gap: 10px;
+		flex-wrap: wrap;
+		justify-content: center;
+	}
 
-button {
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: transform 0.1s ease-in-out;
-}
+	button {
+		border: none;
+		border-radius: 8px;
+		cursor: pointer;
+		font-weight: bold;
+		transition: transform 0.1s ease-in-out;
+	}
 
-button:active {
-    transform: scale(0.9);
-}
+	button:active {
+		transform: scale(0.9);
+	}
 
-p {
-    font-size: 18px;
-}
+	p {
+		font-size: 18px;
+	}
 
-/* Couleurs et tailles */
-.mode { background-color: orange; width: 40px; height: 40px; }
-.blue { background-color: #0099FF; width: 75px; height: 70px; }
-.red { background-color: #FB4040; width: 75px; height: 70px; }
-.orange { background-color: orange; width: 40px; height: 40px; }
-.yellow { background-color: yellow; width: 100px; height: 40px; }
+	/* Couleurs et tailles */
+	.mode {
+		background-color: orange;
+		width: 40px;
+		height: 40px;
+	}
 
-.button-cam { background-color: orange; width: 100px; height: 40px; }
+	.blue {
+		background-color: #0099FF;
+		width: 75px;
+		height: 70px;
+	}
 
-/* Contrôle de vitesse */
-.speed-control {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    justify-content: center;
-}
+	.red {
+		background-color: #FB4040;
+		width: 75px;
+		height: 70px;
+	}
 
-/* Désactivation sélection texte */
-.no-select {
-    user-select: none;
-    -webkit-user-select: none;
-    -ms-user-select: none;
-}
-</style>
-<script>
+	.orange {
+		background-color: orange;
+		width: 40px;
+		height: 40px;
+	}
 
-let speedVal = 0;
+	.yellow {
+		background-color: yellow;
+		width: 100px;
+		height: 40px;
+	}
 
-function getsend(arg) {
-    fetch(arg + '?' + new Date().getTime());
-}
+	.button-cam {
+		background-color: orange;
+		width: 100px;
+		height: 40px;
+	}
 
-function updateData() {
-    fetch("/data").then(r => r.json()).then(data => {
-        lat.textContent = data.Lat;
-        lon.textContent = data.Lon;
-        temp.textContent = data.Temp;
-        hum.textContent = data.Hum;
-        lum.textContent = data.LumMoy;
-        dist_front.textContent = data.DistFront;
-        dist_back.textContent = data.DistBack;
-        dist_right.textContent = data.DistRight;
-        dist_left.textContent = data.DistLeft;
-        mod_move.textContent = data.ModMove;
-        speed.textContent = data.Speed;
+	/* Contrôle de vitesse */
+	.speed-control {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		justify-content: center;
+	}
 
-        speedVal = data.Speed;
-    });
-}
+	/* Désactivation sélection texte */
+	.no-select {
+		user-select: none;
+		-webkit-user-select: none;
+		-ms-user-select: none;
+	}
 
-setInterval(updateData, 100);
+	#error {
+		color: red;
+	}
+	</style>
+	<script>
+	let speedVal = 0;
 
-const keys = new Set();
+	function getsend(arg) {
+		fetch(arg + '?' + new Date().getTime());
+	}
 
-document.addEventListener("keydown", (e) => {
+	let hasError = false; // évite le spam d’erreurs
 
-    // Empêche le spam quand on garde une touche appuyée
-    if (e.repeat) return;
+	async function updateData() {
+		const errorP = document.getElementById("error");
 
-    keys.add(e.key);
+		try {
+			const r = await fetch("/data");
 
-    switch (e.key) {
+			if (!r.ok) {
+				throw new Error("Erreur HTTP : " + r.status);
+			}
 
-        case "ArrowUp":
-            getsend("go");
-            break;
+			const data = await r.json();
 
-        case "ArrowDown":
-            getsend("back");
-            break;
+			if (!data || typeof data !== "object") {
+				throw new Error("Données invalides reçues");
+			}
 
-        case "ArrowLeft":
-            getsend("left");
-            break;
+			// si tout refonctionne, on efface l'erreur
+			if (hasError) {
+				errorP.textContent = "";
+				hasError = false;
+			}
 
-        case "ArrowRight":
-            getsend("right");
-            break;
+			lat.textContent = data.Lat;
+			lon.textContent = data.Lon;
+			temp.textContent = data.Temp;
+			hum.textContent = data.Hum;
+			lum.textContent = data.LumMoy;
+			ubat.textContent = data.Ubat;
+			temp_esp_cpu.textContent = data.TempEspCPU;
+			dist_front.textContent = data.DistFront;
+			dist_back.textContent = data.DistBack;
+			dist_right.textContent = data.DistRight;
+			dist_left.textContent = data.DistLeft;
+			mod_move.textContent = data.ModMove;
+			speed.textContent = data.Speed;
 
-        case " ":
-            getsend("stop");
-            break;
+			speedVal = data.Speed;
 
-        case "s":
-        case "S":
-            if (speedVal < 100) {
-                getsend("up_speed");
-                if (keys.has("ArrowUp")) {
-                    getsend("go");
-                }
-            } else if (keys.has("ArrowUp")) {
-                getsend("up_speed");
-                getsend("go");
-            }
-            break;
+		} catch (err) {
+			console.error(err);
 
-        case "q":
-        case "Q":
-            if (speedVal > 50) {
-                getsend("down_speed");
-            }            
+			// affiche l’erreur une seule fois
+			if (!hasError) {
+				errorP.textContent = "Erreur : " + err.message;
+				hasError = true;
+			}
+		}
+	}
 
-            if (keys.has("ArrowUp")) {
-                getsend("go");
-            }
-            break;
+	setInterval(updateData, 200);
 
-        case "l":
-        case "L":
-            getsend("ledon");
-            break;
+	const keys = new Set();
 
-        case "m":
-        case "M":
-            getsend("ledoff");
-            break;
+	document.addEventListener("keydown", (e) => {
 
-        case "f":
-        case "F":
-            getsend("cam_left");
-            break;
+		// Empêche le spam quand on garde une touche appuyée
+		if (e.repeat) return;
 
-        case "g":
-        case "G":
-            getsend("cam_center");
-            break;
+		keys.add(e.key);
 
-        case "h":
-        case "H":
-            getsend("cam_right");
-            break;
+		switch (e.key) {
 
-        case "à":
-        case "0":
-            getsend("mod_0");
-            break;
+			case "ArrowUp":
+				getsend("go");
+				break;
 
-        case "&":
-        case "1":
-            getsend("mod_1");
-            break;
-    }
-});
+			case "ArrowDown":
+				getsend("back");
+				break;
 
-document.addEventListener("keyup", (e) => {
-    keys.delete(e.key);
+			case "ArrowLeft":
+				getsend("left");
+				break;
 
-    // Si une touche de déplacement est relâchée → stop
-    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
-        getsend("stop");
-    }
-});
-</script>
+			case "ArrowRight":
+				getsend("right");
+				break;
+
+			case " ":
+				getsend("stop");
+				break;
+
+			case "s":
+			case "S":
+				if (speedVal < 100) {
+					getsend("up_speed");
+					if (keys.has("ArrowUp")) {
+						getsend("go");
+					}
+				} else if (keys.has("ArrowUp")) {
+					getsend("up_speed");
+					getsend("go");
+				}
+				break;
+
+			case "q":
+			case "Q":
+				if (speedVal > 50) {
+					getsend("down_speed");
+				}
+
+				if (keys.has("ArrowUp")) {
+					getsend("go");
+				}
+				break;
+
+			case "l":
+			case "L":
+				getsend("ledon");
+				break;
+
+			case "m":
+			case "M":
+				getsend("ledoff");
+				break;
+
+			case "f":
+			case "F":
+				getsend("cam_left");
+				break;
+
+			case "g":
+			case "G":
+				getsend("cam_center");
+				break;
+
+			case "h":
+			case "H":
+				getsend("cam_right");
+				break;
+
+			case "à":
+			case "0":
+				getsend("mod_0");
+				break;
+
+			case "&":
+			case "1":
+				getsend("mod_1");
+				break;
+		}
+	});
+
+	document.addEventListener("keyup", (e) => {
+		keys.delete(e.key);
+
+		// Si une touche de déplacement est relâchée → stop
+		if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+			getsend("stop");
+		}
+	});
+	</script>
 </head>
+
 <body>
-<h1>Rover</h1>
-<section>
-    <!-- Informations -->
-    <div class="card no-select">
-        <fieldset style="display: flex;flex-direction: column;gap: 5px;"><legend>Capteurs</legend>
-            <p>Latitude : <span id="lat">NC</span></p>
-            <p>Longitude : <span id="lon">NC</span></p>
-            <p>Température : <span id="temp">0</span>°C</p>
-            <p>Humidité : <span id="hum">0</span>%</p>
-            <p>Luminosité : <span id="lum">0</span> Lux</p>
-            <p>Distance avant : <span id="dist_front">0</span> cm</p>
-            <p>Distance arrière : <span id="dist_back">0</span> cm</p>
-            <p>Distance droite : <span id="dist_right">0</span> cm</p>
-            <p>Distance gauche : <span id="dist_left">0</span> cm</p>
-        </fieldset>
-        <fieldset><legend>Mode de déplacement</legend>
-            <p>Mode : <span id="mod_move">0</span></p>
-            <div class="button-row">
-                <button class="mode" onmousedown="getsend('mod_0')">0</button>
-                <button class="mode" onmousedown="getsend('mod_1')">1</button>
-            </div>
-        </fieldset>
-    </div>
-
-    <!-- Caméra -->
-    <div class="card image no-select">
-        <img src="http://192.168.4.1:81/stream" class="video">
-        <div class="button-row">
-            <button class="button-cam" onmousedown="getsend('cam_left')">Gauche</button>
-            <button class="button-cam" onmousedown="getsend('cam_center')">Centre</button>
-            <button class="button-cam" onmousedown="getsend('cam_right')">Droite</button>
-        </div>
-    </div>
-
-    <!-- Contrôles -->
-    <div class="card controls no-select">
-        <div class="button-row">
-            <button class="blue" onmousedown="getsend('go')" onmouseup="getsend('stop')">Avancer</button>
-        </div>
-        <div class="button-row">
-            <button class="blue" onmousedown="getsend('left')" onmouseup="getsend('stop')">Gauche</button>
-            <button class="red" onmousedown="getsend('stop')">Stop</button>
-            <button class="blue" onmousedown="getsend('right')" onmouseup="getsend('stop')">Droite</button>
-        </div>
-        <div class="button-row">
-            <button class="blue" onmousedown="getsend('back')" onmouseup="getsend('stop')">Reculer</button>
-        </div>
-        <div class="speed-control">
-            <p>Vitesse : <span id="speed">0</span></p>
-            <div class="button-row">
-                <button class="orange" onmousedown="getsend('down_speed')">-</button>
-                <button class="orange" onmousedown="getsend('up_speed')">+</button>
-            </div>
-        </div>
-        <div class="button-row">
-            <button class="yellow" onmousedown="getsend('ledon')">Lumière ON</button>
-            <button class="yellow" onmousedown="getsend('ledoff')">Lumière OFF</button>
-        </div>
-    </div>
-</section>
+	<h1>Rover</h1>
+	<section>
+		<!-- Informations -->
+		<div class="card no-select">
+			<fieldset style="display: flex;flex-direction: column;gap: 5px;">
+				<legend>Capteurs</legend>
+				<p>Latitude : <span id="lat">NC</span></p>
+				<p>Longitude : <span id="lon">NC</span></p>
+				<p>Température : <span id="temp">0</span>°C</p>
+				<p>Humidité : <span id="hum">0</span>%</p>
+				<p>Luminosité : <span id="lum">0</span> Lux</p>
+				<p>Distance avant : <span id="dist_front">0</span> cm</p>
+				<p>Distance arrière : <span id="dist_back">0</span> cm</p>
+				<p>Distance droite : <span id="dist_right">0</span> cm</p>
+				<p>Distance gauche : <span id="dist_left">0</span> cm</p>
+				<p>Batterie : <span id="ubat">0</span> V</p>
+				<p>ESP CPU : <span id="temp_esp_cpu">0</span>°C</p>
+			</fieldset>
+			<fieldset>
+				<legend>Mode de déplacement</legend>
+				<p>Mode : <span id="mod_move">0</span></p>
+				<div class="button-row">
+					<button class="mode" onmousedown="getsend('mod_0')">0</button>
+					<button class="mode" onmousedown="getsend('mod_1')">1</button>
+				</div>
+			</fieldset>
+			<p id="error"></p>
+		</div>
+		<!-- Caméra -->
+		<div class="card image no-select">
+			<img src="http://192.168.4.1:81/stream" alt="Stream" class="video">
+			<div class="button-row">
+				<button class="button-cam" onmousedown="getsend('cam_left')">Gauche</button>
+				<button class="button-cam" onmousedown="getsend('cam_center')">Centre</button>
+				<button class="button-cam" onmousedown="getsend('cam_right')">Droite</button>
+			</div>
+		</div>
+		<!-- Contrôles -->
+		<div class="card controls no-select">
+			<div class="button-row">
+				<button class="blue" onmousedown="getsend('go')" onmouseup="getsend('stop')">Avancer</button>
+			</div>
+			<div class="button-row">
+				<button class="blue" onmousedown="getsend('left')" onmouseup="getsend('stop')">Gauche</button>
+				<button class="red" onmousedown="getsend('stop')">Stop</button>
+				<button class="blue" onmousedown="getsend('right')" onmouseup="getsend('stop')">Droite</button>
+			</div>
+			<div class="button-row">
+				<button class="blue" onmousedown="getsend('back')" onmouseup="getsend('stop')">Reculer</button>
+			</div>
+			<div class="speed-control">
+				<p>Vitesse : <span id="speed">0</span></p>
+				<div class="button-row">
+					<button class="orange" onmousedown="getsend('down_speed')">-</button>
+					<button class="orange" onmousedown="getsend('up_speed')">+</button>
+				</div>
+			</div>
+			<div class="button-row">
+				<button class="yellow" onmousedown="getsend('ledon')">Lumière ON</button>
+				<button class="yellow" onmousedown="getsend('ledoff')">Lumière OFF</button>
+			</div>
+		</div>
+	</section>
 </body>
+
 </html>

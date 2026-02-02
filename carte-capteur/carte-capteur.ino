@@ -8,6 +8,8 @@ TinyGPSPlus gps;
 
 Servo ServoCam;
 
+#define PIN_PDT A7
+
 #define AIN1_PIN 33
 #define AIN2_PIN 27
 
@@ -20,6 +22,14 @@ Servo ServoCam;
 #define DHT_TYPE DHT22
 DHT dht(DHT_PIN, DHT_TYPE);
 float temp, hum;
+
+float Vref = 5.0;
+float diviseur = 3.07;
+float Ubat;
+
+int Temp10;   // température ×10
+int Hum10;    // humidité ×10
+int Ubat100;  // tension ×100
 
 int photo_1 = A0;
 int photo_2 = A1;
@@ -60,7 +70,7 @@ int BIN2_val = 0;
 int SERVO_val = 90;
 
 unsigned long lastSensorUpdate = 0;
-const unsigned long SENSOR_INTERVAL = 500;  // ms
+const unsigned long SENSOR_INTERVAL = 200;  // ms
 
 char serial2Buffer[64];
 uint8_t serial2Index = 0;
@@ -145,6 +155,7 @@ int Distance_test(int trig, int echo) {
 }
 
 void setup() {
+  // Serial.begin(9600);     // Debug
   Serial1.begin(9600);    // GPS
   Serial2.begin(115200);  // ESP
 
@@ -310,6 +321,25 @@ void updateSensors() {
   temp = dht.readTemperature();
   hum = dht.readHumidity();
 
+  if (!isnan(temp)) {
+    Temp10 = (int)(temp * 10.0f + (temp >= 0 ? 0.5f : -0.5f));
+  }
+
+  if (!isnan(hum)) {
+    Hum10 = (int)(hum * 10.0f + 0.5f);
+  }
+
+  // Lecture Tension batterie
+  long somme = 0;
+  for (int i = 0; i < 50; i++) {
+    somme += analogRead(PIN_PDT);
+  }
+
+  float val = somme / 50.0;
+
+  Ubat = val * (Vref / 1023.0) * diviseur;
+  Ubat100 = (int)(Ubat * 100.0f + 0.5f);
+
   // GPS
   while (Serial1.available()) {
     gps.encode(Serial1.read());
@@ -318,6 +348,9 @@ void updateSensors() {
       lng = gps.location.lng();
     }
   }
+
+  int32_t latE7 = lat * 1e7;
+  int32_t lngE7 = lng * 1e7;
 
   // Envoi des données
   Serial2.print(Distance_A);
@@ -330,30 +363,35 @@ void updateSensors() {
   Serial2.print(",");
   Serial2.print(val_photo_moyen);
   Serial2.print(",");
-  Serial2.print(temp, 0);
+  Serial2.print(Temp10);
   Serial2.print(",");
-  Serial2.print(hum, 0);
+  Serial2.print(Hum10);
   Serial2.print(",");
-  printDMS(lat, true);
+  Serial2.print(Ubat100);
   Serial2.print(",");
-  printDMS(lng, false);
+  Serial2.print(latE7);
+  Serial2.print(",");
+  Serial2.print(lngE7);
+  // printDMS(lat, true);
+  // Serial2.print(",");
+  // printDMS(lng, false);
   Serial2.println();
 }
 
-void printDMS(double coord, bool isLatitude) {
-  char direction = (isLatitude ? (coord >= 0 ? 'N' : 'S') : (coord >= 0 ? 'E' : 'W'));
-  coord = abs(coord);
+// void printDMS(double coord, bool isLatitude) {
+//   char direction = (isLatitude ? (coord >= 0 ? 'N' : 'S') : (coord >= 0 ? 'E' : 'W'));
+//   coord = abs(coord);
 
-  int degrees = int(coord);
-  double minutesDecimal = (coord - degrees) * 60;
-  int minutes = int(minutesDecimal);
-  double seconds = (minutesDecimal - minutes) * 60;
+//   int degrees = int(coord);
+//   double minutesDecimal = (coord - degrees) * 60;
+//   int minutes = int(minutesDecimal);
+//   double seconds = (minutesDecimal - minutes) * 60;
 
-  Serial2.print(degrees);
-  Serial2.print("°");
-  Serial2.print(minutes);
-  Serial2.print("'");
-  Serial2.print(seconds, 2);
-  Serial2.print("\"");
-  Serial2.print(direction);
-}
+//   Serial2.print(degrees);
+//   Serial2.print("°");
+//   Serial2.print(minutes);
+//   Serial2.print("'");
+//   Serial2.print(seconds, 2);
+//   Serial2.print("\"");
+//   Serial2.print(direction);
+// }

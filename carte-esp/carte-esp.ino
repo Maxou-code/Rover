@@ -2,14 +2,13 @@
 #include <esp_bt.h>
 #include <WiFi.h>
 #include <ArduinoOTA.h>
-#include <HardwareSerial.h>
 
 #include "globals.hpp"
 
 // Sélectionnez le modèle de caméra
 #define CAMERA_MODEL_AI_THINKER
-const char *ssid = "Rover";
-const char *password = "12345678";
+const char* ssid = "Rover";
+const char* password = "12345678";
 
 extern void robot_stop();
 extern void robot_setup();
@@ -37,15 +36,13 @@ extern void robot_setup();
 #error "Camera model not selected"
 #endif
 
-HardwareSerial SerialMega(2);
-
 // Pin Lumière
 int gpLed = 4;
 
 // Variables
-int DistFront, DistBack, DistRight, DistLeft, LumMoy, Temp, Hum;
-char latitude[20];
-char longitude[20];
+volatile int DistFront, DistBack, DistRight, DistLeft, LumMoy;
+volatile int Temp, Hum, Ubat;
+volatile int32_t latitude, longitude;
 
 unsigned long lastFrameTime = 0;
 
@@ -53,16 +50,14 @@ void startCameraServer();
 
 void setup() {
   Serial.begin(115200);
-  Serial.setDebugOutput(true);
-  Serial.println();
-  Serial.println("Start setup");
-
-  SerialMega.begin(115200, SERIAL_8N1, 14, 15);
+  Serial.setDebugOutput(false);
 
   robot_setup();
 
   pinMode(gpLed, OUTPUT);
   digitalWrite(gpLed, LOW);
+
+  xTaskCreatePinnedToCore(serialTask, "SerialTask", 4096, NULL, 2, NULL, 1);
 
   // Désactive Bluetooth
   esp_bt_controller_disable();
@@ -78,49 +73,81 @@ void setup() {
 void loop() {
   ArduinoOTA.handle();
 
-  static char buffer[128];
-  static uint8_t index = 0;
-
-  // Lecture série non bloquante caractère par caractère
-  while (SerialMega.available()) {
-    char c = SerialMega.read();
-
-    if (c == '\n') {
-      buffer[index] = '\0';  // fin de chaîne
-      index = 0;
-
-      int parsed = sscanf(
-        buffer,
-        "%d,%d,%d,%d,%d,%d,%d,%19[^,],%19s",
-        &DistFront, &DistBack, &DistRight, &DistLeft,
-        &LumMoy, &Temp, &Hum,
-        latitude, longitude
-      );
-
-      if (parsed == 9) {
-        lastFrameTime = millis();  // trame valide
-      } else {
-        Serial.println("Trame invalide !");
-      }
-
-    } else if (index < sizeof(buffer) - 1) {
-      buffer[index++] = c;
-    }
-    // sinon : caractère ignoré (overflow évité)
-  }
-
   // FAILSAFE : plus de trame depuis > 1200 ms
   if (millis() - lastFrameTime > 1200) {
     robot_stop();
-    return;
+    // return;
   }
 
   // Sécurité obstacle
   if (ModMove == 1 && DistFront <= 20 && robot_fwd_val == true) {
     robot_stop();
     robot_fwd_val = false;
-    return;
+    // return;
   }
+
+  yield();
+}
+
+void serialTask(void* parameter) {
+  static char buffer[256];
+  static uint8_t index = 0;
+  int count = 0;
+
+  while (true) {  // boucle infinie pour la tâche
+    while (Serial.available()) {
+      char c = Serial.read();
+
+      if (c == '\n') {
+        buffer[index] = '\0';
+        index = 0;
+        parseFrame(buffer);
+        count = 0;
+      } else if (index < sizeof(buffer) - 1) {
+        buffer[index++] = c;
+      }
+
+      if (++count >= 50) {
+        count = 0;
+        yield();  // laisse respirer Wi-Fi/TCP/IP
+      }
+    }
+    vTaskDelay(50);  // éviter 100% CPU si pas de données
+  }
+}
+
+inline char* nextField(char* p) {
+  char* c = strchr(p, ',');
+  if (!c) return nullptr;
+  return c + 1;
+}
+
+void parseFrame(char* buf) {
+  char* p = buf;
+
+  DistFront = atoi(p);
+  p = nextField(p);
+  DistBack = atoi(p);
+  p = nextField(p);
+  DistRight = atoi(p);
+  p = nextField(p);
+  DistLeft = atoi(p);
+  p = nextField(p);
+
+  LumMoy = atoi(p);
+  p = nextField(p);
+  Temp = atoi(p);
+  p = nextField(p);
+  Hum = atoi(p);
+  p = nextField(p);
+  Ubat = atoi(p);
+  p = nextField(p);
+
+  latitude = atol(p);
+  p = nextField(p);
+  longitude = atol(p);
+
+  lastFrameTime = millis();
 }
 
 void camera_setup() {
@@ -147,39 +174,70 @@ void camera_setup() {
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
 
-  // PSRAM ?
+  // Configuration optimale pour streaming fluide
   if (psramFound()) {
-    config.frame_size = FRAMESIZE_UXGA;
+    config.frame_size = FRAMESIZE_VGA;  // 640x480 si PSRAM
     config.jpeg_quality = 10;
-    config.fb_count = 2;
+    config.fb_count = 2;                    // Double buffering !
+    config.grab_mode = CAMERA_GRAB_LATEST;  // IMPORTANT : toujours la frame la plus récente
   } else {
-    config.frame_size = FRAMESIZE_SVGA;
+    config.frame_size = FRAMESIZE_CIF;  // 400x296 sans PSRAM
     config.jpeg_quality = 12;
     config.fb_count = 1;
+    config.grab_mode = CAMERA_GRAB_LATEST;
   }
 
   // Init caméra
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
-    Serial.printf("Camera init failed with error 0x%x\n", err);
+    // Serial.printf("Camera init failed with error 0x%x\n", err);
     return;
   }
 
   // Taille réduite pour plus de FPS au démarrage
-  sensor_t *s = esp_camera_sensor_get();
-  s->set_framesize(s, FRAMESIZE_CIF);
+  // Après init, réglages fins du capteur
+  sensor_t* s = esp_camera_sensor_get();
+  if (s) {
+    // Pas de changement de framesize après init
+    s->set_brightness(s, 0);                  // -2 à 2
+    s->set_contrast(s, 0);                    // -2 à 2
+    s->set_saturation(s, 0);                  // -2 à 2
+    s->set_special_effect(s, 0);              // 0 = pas d'effet
+    s->set_whitebal(s, 1);                    // white balance auto
+    s->set_awb_gain(s, 1);                    // auto gain
+    s->set_wb_mode(s, 0);                     // auto
+    s->set_exposure_ctrl(s, 1);               // auto exposition
+    s->set_aec2(s, 0);                        // AEC DSP
+    s->set_ae_level(s, 0);                    // -2 à 2
+    s->set_aec_value(s, 300);                 // 0 à 1200
+    s->set_gain_ctrl(s, 1);                   // auto gain
+    s->set_agc_gain(s, 0);                    // 0 à 30
+    s->set_gainceiling(s, (gainceiling_t)0);  // 0 à 6
+    s->set_bpc(s, 0);                         // black pixel correction
+    s->set_wpc(s, 1);                         // white pixel correction
+    s->set_raw_gma(s, 1);                     // gamma correction
+    s->set_lenc(s, 1);                        // lens correction
+    s->set_hmirror(s, 1);                     // 1 = miroir horizontal
+    s->set_vflip(s, 1);                       // 1 = flip vertical
+    s->set_dcw(s, 1);                         // downsize enable
+    s->set_colorbar(s, 0);                    // 0 = pas de colorbar
+  }
 }
 
 void wifi_setup() {
-  WiFi.softAP(ssid, password);
+  WiFi.mode(WIFI_AP);
+
+  // WiFi.setSleep(false);
+
+  WiFi.softAP(ssid, password, 1, false, 1);
   IPAddress ip = WiFi.softAPIP();
 
-  Serial.print("AP IP address: ");
-  Serial.println(ip);
+  // Serial.print("AP IP address: ");
+  // Serial.println(ip);
 
-  Serial.print("Rover Ready! Use 'http://");
-  Serial.print(ip);
-  Serial.println("' to connect");
+  // Serial.print("Rover Ready! Use 'http://");
+  // Serial.print(ip);
+  // Serial.println("' to connect");
 }
 
 void ota_setup() {
@@ -189,32 +247,34 @@ void ota_setup() {
   ArduinoOTA.onStart([]() {
     const char* type =
       (ArduinoOTA.getCommand() == U_FLASH) ? "sketch" : "filesystem";
-    Serial.print("OTA Start: updating ");
-    Serial.println(type);
+    // Serial.print("OTA Start: updating ");
+    // Serial.println(type);
   });
 
   ArduinoOTA.onEnd([]() {
-    Serial.println("OTA End\n");
+    // Serial.println("OTA End\n");
+    ESP.restart();
   });
 
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    Serial.printf(
-      "OTA Progress: %u%%\r",
-      (progress * 100) / total
-    );
+    // Serial.printf(
+    //   "OTA Progress: %u%%\r",
+    //   (progress * 100) / total);
   });
 
   ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("OTA Error[%u]: ", error);
-    switch (error) {
-      case OTA_AUTH_ERROR:    Serial.println("Auth Failed"); break;
-      case OTA_BEGIN_ERROR:   Serial.println("Begin Failed"); break;
-      case OTA_CONNECT_ERROR: Serial.println("Connect Failed"); break;
-      case OTA_RECEIVE_ERROR: Serial.println("Receive Failed"); break;
-      case OTA_END_ERROR:     Serial.println("End Failed"); break;
-    }
+    // Serial.printf("OTA Error[%u]: ", error);
+    // switch (error) {
+    //   case OTA_AUTH_ERROR: Serial.println("Auth Failed"); break;
+    //   case OTA_BEGIN_ERROR: Serial.println("Begin Failed"); break;
+    //   case OTA_CONNECT_ERROR: Serial.println("Connect Failed"); break;
+    //   case OTA_RECEIVE_ERROR: Serial.println("Receive Failed"); break;
+    //   case OTA_END_ERROR: Serial.println("End Failed"); break;
+    // }
   });
 
+  ArduinoOTA.setTimeout(60000);
+
   ArduinoOTA.begin();
-  Serial.println("OTA Ready");
+  // Serial.println("OTA Ready");
 }

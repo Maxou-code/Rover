@@ -5,6 +5,12 @@
 
 #include "globals.hpp"
 
+#define SEND_CHUNK_OR_BREAK(x) \
+  if ((x) != ESP_OK) { \
+    res = ESP_FAIL; \
+    break; \
+  }
+
 #define PWMA 12
 #define PWMB 13
 
@@ -18,8 +24,8 @@ int BIN2_val = 0;
 
 int speed = 100;
 
-int ModMove = 0;
-bool robot_fwd_val = false;
+volatile int ModMove = 0;
+volatile bool robot_fwd_val = false;
 
 void sendToMega();
 
@@ -145,24 +151,24 @@ void camera_center() {
 }
 
 void sendToMega() {
-  SerialMega.print(AIN1_val);
-  SerialMega.print(",");
-  SerialMega.print(AIN2_val);
-  SerialMega.print(",");
-  SerialMega.print(BIN1_val);
-  SerialMega.print(",");
-  SerialMega.print(BIN2_val);
-  SerialMega.print(",");
-  SerialMega.println(position_servo);
-}
+  static int last_AIN1 = -1;
+  static int last_AIN2 = -1;
+  static int last_BIN1 = -1;
+  static int last_BIN2 = -1;
+  static int last_servo = -1;
 
-typedef struct {
-  size_t size;   //number of values used for filtering
-  size_t index;  //current value index
-  size_t count;  //value count
-  int sum;
-  int *values;  //array to be filled with values
-} ra_filter_t;
+  if (AIN1_val == last_AIN1 && AIN2_val == last_AIN2 && BIN1_val == last_BIN1 && BIN2_val == last_BIN2 && position_servo == last_servo) {
+    return;  // rien à envoyer
+  }
+
+  last_AIN1 = AIN1_val;
+  last_AIN2 = AIN2_val;
+  last_BIN1 = BIN1_val;
+  last_BIN2 = BIN2_val;
+  last_servo = position_servo;
+
+  Serial.printf("%d,%d,%d,%d,%d\n", AIN1_val, AIN2_val, BIN1_val, BIN2_val, position_servo);
+}
 
 typedef struct {
   httpd_req_t *req;
@@ -174,147 +180,68 @@ static const char *_STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" 
 static const char *_STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
 static const char *_STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
 
-static ra_filter_t ra_filter;
 httpd_handle_t stream_httpd = NULL;
 httpd_handle_t server_rover = NULL;
 
-static ra_filter_t *ra_filter_init(ra_filter_t *filter, size_t sample_size) {
-  memset(filter, 0, sizeof(ra_filter_t));
-
-  filter->values = (int *)malloc(sample_size * sizeof(int));
-  if (!filter->values) {
-    return NULL;
-  }
-  memset(filter->values, 0, sample_size * sizeof(int));
-
-  filter->size = sample_size;
-  return filter;
-}
-
-static int ra_filter_run(ra_filter_t *filter, int value) {
-  if (!filter->values) {
-    return value;
-  }
-  filter->sum -= filter->values[filter->index];
-  filter->values[filter->index] = value;
-  filter->sum += filter->values[filter->index];
-  filter->index++;
-  filter->index = filter->index % filter->size;
-  if (filter->count < filter->size) {
-    filter->count++;
-  }
-  return filter->sum / filter->count;
-}
-
-static size_t jpg_encode_stream(void *arg, size_t index, const void *data, size_t len) {
-  jpg_chunking_t *j = (jpg_chunking_t *)arg;
-  if (!index) {
-    j->len = 0;
-  }
-  if (httpd_resp_send_chunk(j->req, (const char *)data, len) != ESP_OK) {
-    return 0;
-  }
-  j->len += len;
-  return len;
-}
-
 static esp_err_t capture_handler(httpd_req_t *req) {
-  camera_fb_t *fb = NULL;
-  esp_err_t res = ESP_OK;
-  int64_t fr_start = esp_timer_get_time();
-
-  fb = esp_camera_fb_get();
+  // Capture d'une frame
+  camera_fb_t *fb = esp_camera_fb_get();
   if (!fb) {
-    Serial.printf("Camera capture failed");
+    // Serial.println("Camera capture failed");
     httpd_resp_send_500(req);
     return ESP_FAIL;
   }
 
+  // On force le type JPEG
   httpd_resp_set_type(req, "image/jpeg");
   httpd_resp_set_hdr(req, "Content-Disposition", "inline; filename=capture.jpg");
 
-  size_t fb_len = 0;
-  if (fb->format == PIXFORMAT_JPEG) {
-    fb_len = fb->len;
-    res = httpd_resp_send(req, (const char *)fb->buf, fb->len);
-  } else {
-    jpg_chunking_t jchunk = { req, 0 };
-    res = frame2jpg_cb(fb, 80, jpg_encode_stream, &jchunk) ? ESP_OK : ESP_FAIL;
-    httpd_resp_send_chunk(req, NULL, 0);
-    fb_len = jchunk.len;
-  }
+  // Envoi direct du buffer JPEG
+  esp_err_t res = httpd_resp_send(req, (const char *)fb->buf, fb->len);
+
+  // Libération de la frame
   esp_camera_fb_return(fb);
-  int64_t fr_end = esp_timer_get_time();
-  // Serial.printf("JPG: %uB %ums", (uint32_t)(fb_len), (uint32_t)((fr_end - fr_start) / 1000));
+
   return res;
 }
 
 static esp_err_t stream_handler(httpd_req_t *req) {
-  camera_fb_t *fb = NULL;
   esp_err_t res = ESP_OK;
-  size_t _jpg_buf_len = 0;
-  uint8_t *_jpg_buf = NULL;
-  char *part_buf[64];
+  static char part_buf[128];  // réutilisable
+  httpd_resp_set_type(req, _STREAM_CONTENT_TYPE);
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+  httpd_resp_set_hdr(req, "Cache-Control", "no-store, no-cache, must-revalidate");
 
-  static int64_t last_frame = 0;
-  if (!last_frame) {
-    last_frame = esp_timer_get_time();
-  }
-
-  res = httpd_resp_set_type(req, _STREAM_CONTENT_TYPE);
-  if (res != ESP_OK) {
-    return res;
-  }
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  const TickType_t xFrequency = 33 / portTICK_PERIOD_MS;  // 30 FPS ~33ms
 
   while (true) {
-    fb = esp_camera_fb_get();
+    camera_fb_t *fb = esp_camera_fb_get();
     if (!fb) {
-      Serial.printf("Camera capture failed");
-      res = ESP_FAIL;
-    } else {
-      if (fb->format != PIXFORMAT_JPEG) {
-        bool jpeg_converted = frame2jpg(fb, 80, &_jpg_buf, &_jpg_buf_len);
-        esp_camera_fb_return(fb);
-        fb = NULL;
-        if (!jpeg_converted) {
-          Serial.printf("JPEG compression failed");
-          res = ESP_FAIL;
-        }
-      } else {
-        _jpg_buf_len = fb->len;
-        _jpg_buf = fb->buf;
-      }
+      vTaskDelay(1);  // petite pause si capture échoue
+      continue;
     }
-    if (res == ESP_OK) {
-      size_t hlen = snprintf((char *)part_buf, 64, _STREAM_PART, _jpg_buf_len);
-      res = httpd_resp_send_chunk(req, (const char *)part_buf, hlen);
-    }
-    if (res == ESP_OK) {
-      res = httpd_resp_send_chunk(req, (const char *)_jpg_buf, _jpg_buf_len);
-    }
-    if (res == ESP_OK) {
-      res = httpd_resp_send_chunk(req, _STREAM_BOUNDARY, strlen(_STREAM_BOUNDARY));
-    }
-    if (fb) {
+
+    // Envoi MJPEG
+    if (httpd_resp_send_chunk(req, _STREAM_BOUNDARY, strlen(_STREAM_BOUNDARY)) != ESP_OK) {
       esp_camera_fb_return(fb);
-      fb = NULL;
-      _jpg_buf = NULL;
-    } else if (_jpg_buf) {
-      free(_jpg_buf);
-      _jpg_buf = NULL;
-    }
-    if (res != ESP_OK) {
+      res = ESP_FAIL;
       break;
     }
-    int64_t fr_end = esp_timer_get_time();
 
-    int64_t frame_time = fr_end - last_frame;
-    last_frame = fr_end;
-    frame_time /= 1000;
-    uint32_t avg_frame_time = ra_filter_run(&ra_filter, frame_time);
+    int hlen = sprintf(part_buf, "--boundary\r\nContent-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n", fb->len);
+    if (httpd_resp_send_chunk(req, part_buf, hlen) != ESP_OK || httpd_resp_send_chunk(req, (const char *)fb->buf, fb->len) != ESP_OK) {
+      esp_camera_fb_return(fb);
+      res = ESP_FAIL;
+      break;
+    }
+
+    esp_camera_fb_return(fb);
+
+    // cadence stable 30 FPS
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 
-  last_frame = 0;
   return res;
 }
 
@@ -441,7 +368,7 @@ static esp_err_t index_handler(httpd_req_t *req) {
 static esp_err_t go_handler(httpd_req_t *req) {
   add_cors_headers(req);
   robot_fwd();
-  Serial.println("Go");
+  // Serial.println("Go");
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, "OK", 2);
 }
@@ -449,7 +376,7 @@ static esp_err_t go_handler(httpd_req_t *req) {
 static esp_err_t back_handler(httpd_req_t *req) {
   add_cors_headers(req);
   robot_back();
-  Serial.println("Back");
+  // Serial.println("Back");
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, "OK", 2);
 }
@@ -457,14 +384,14 @@ static esp_err_t back_handler(httpd_req_t *req) {
 static esp_err_t left_handler(httpd_req_t *req) {
   add_cors_headers(req);
   robot_left();
-  Serial.println("Left");
+  // Serial.println("Left");
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, "OK", 2);
 }
 static esp_err_t right_handler(httpd_req_t *req) {
   add_cors_headers(req);
   robot_right();
-  Serial.println("Right");
+  // Serial.println("Right");
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, "OK", 2);
 }
@@ -472,7 +399,7 @@ static esp_err_t right_handler(httpd_req_t *req) {
 static esp_err_t stop_handler(httpd_req_t *req) {
   add_cors_headers(req);
   robot_stop();
-  Serial.println("Stop");
+  // Serial.println("Stop");
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, "OK", 2);
 }
@@ -480,7 +407,7 @@ static esp_err_t stop_handler(httpd_req_t *req) {
 static esp_err_t ledon_handler(httpd_req_t *req) {
   add_cors_headers(req);
   digitalWrite(gpLed, HIGH);
-  Serial.println("LED ON");
+  // Serial.println("LED ON");
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, "OK", 2);
 }
@@ -488,7 +415,7 @@ static esp_err_t ledon_handler(httpd_req_t *req) {
 static esp_err_t ledoff_handler(httpd_req_t *req) {
   add_cors_headers(req);
   digitalWrite(gpLed, LOW);
-  Serial.println("LED OFF");
+  // Serial.println("LED OFF");
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, "OK", 2);
 }
@@ -496,7 +423,7 @@ static esp_err_t ledoff_handler(httpd_req_t *req) {
 static esp_err_t cam_left_handler(httpd_req_t *req) {
   add_cors_headers(req);
   camera_left();
-  Serial.println("CAM LEFT");
+  // Serial.println("CAM LEFT");
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, "OK", 2);
 }
@@ -504,7 +431,7 @@ static esp_err_t cam_left_handler(httpd_req_t *req) {
 static esp_err_t cam_right_handler(httpd_req_t *req) {
   add_cors_headers(req);
   camera_right();
-  Serial.println("CAM RIGHT");
+  // Serial.println("CAM RIGHT");
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, "OK", 2);
 }
@@ -512,7 +439,7 @@ static esp_err_t cam_right_handler(httpd_req_t *req) {
 static esp_err_t cam_center_handler(httpd_req_t *req) {
   add_cors_headers(req);
   camera_center();
-  Serial.println("CAM CENTER");
+  // Serial.println("CAM CENTER");
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, "OK", 2);
 }
@@ -520,7 +447,7 @@ static esp_err_t cam_center_handler(httpd_req_t *req) {
 static esp_err_t move_standart_handler(httpd_req_t *req) {
   add_cors_headers(req);
   ModMove = 0;
-  Serial.println("MOD MOVE 0");
+  // Serial.println("MOD MOVE 0");
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, "OK", 2);
 }
@@ -528,7 +455,7 @@ static esp_err_t move_standart_handler(httpd_req_t *req) {
 static esp_err_t move_stop_obstacle_handler(httpd_req_t *req) {
   add_cors_headers(req);
   ModMove = 1;
-  Serial.println("MOD MOVE 1");
+  // Serial.println("MOD MOVE 1");
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, "OK", 2);
 }
@@ -536,7 +463,7 @@ static esp_err_t move_stop_obstacle_handler(httpd_req_t *req) {
 static esp_err_t up_speed_handler(httpd_req_t *req) {
   add_cors_headers(req);
   if (speed < 255) { speed += 5; }
-  Serial.println("Speep up");
+  // Serial.println("Speep up");
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, "OK", 2);
 }
@@ -544,38 +471,95 @@ static esp_err_t up_speed_handler(httpd_req_t *req) {
 static esp_err_t down_speed_handler(httpd_req_t *req) {
   add_cors_headers(req);
   if (speed > 0) { speed -= 5; }
-  Serial.println("Speed down");
+  // Serial.println("Speed down");
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, "OK", 2);
 }
 
-void escape_json(const char *in, char *out, size_t out_size) {
+// Échappe " et \ pour JSON, modifie le buffer output
+void escape_json(const char *input, char *output, size_t outSize) {
   size_t j = 0;
-
-  for (size_t i = 0; in[i] && j + 2 < out_size; i++) {
-    if (in[i] == '"' || in[i] == '\\') {
-      out[j++] = '\\';
+  for (size_t i = 0; input[i] != '\0' && j < outSize - 1; i++) {
+    char c = input[i];
+    if (c == '\"' || c == '\\') {
+      if (j + 2 >= outSize - 1) break;  // pas assez de place
+      output[j++] = '\\';
+      output[j++] = c;
+    } else if (c == '\n') {
+      if (j + 2 >= outSize - 1) break;
+      output[j++] = '\\';
+      output[j++] = 'n';
+    } else if (c == '\r') {
+      if (j + 2 >= outSize - 1) break;
+      output[j++] = '\\';
+      output[j++] = 'r';
+    } else if (c == '\t') {
+      if (j + 2 >= outSize - 1) break;
+      output[j++] = '\\';
+      output[j++] = 't';
+    } else {
+      output[j++] = c;
     }
-    out[j++] = in[i];
   }
+  output[j] = '\0';
+}
 
-  out[j] = '\0';
+void int32ToDMSString(int32_t coord_scaled, bool isLatitude, char *buffer, size_t bufSize) {
+  // Séparer le signe
+  bool isPositive = (coord_scaled >= 0);
+  int32_t absCoord = isPositive ? coord_scaled : -coord_scaled;
+
+  // Degrés
+  int degrees = absCoord / 10000000;
+
+  // Minutes
+  int32_t minutes_part = absCoord % 10000000;
+  int minutes = (minutes_part * 60) / 10000000;
+
+  // Secondes (float pour précision)
+  float seconds = ((minutes_part * 60.0f) / 10000000 - minutes) * 60.0f;
+
+  // Direction
+  char dir;
+  if (isLatitude) dir = isPositive ? 'N' : 'S';
+  else dir = isPositive ? 'E' : 'W';
+
+  // Formater dans le buffer
+  snprintf(buffer, bufSize, "%d°%d'%05.2f\"%c", degrees, minutes, seconds, dir);
 }
 
 static esp_err_t data_handler(httpd_req_t *req) {
   add_cors_headers(req);
-  static char json[256];
-  static char lat[32];
-  static char lon[32];
 
-  escape_json(latitude, lat, sizeof(lat));
-  escape_json(longitude, lon, sizeof(lon));
+  static char json[512];
+  static char lat[20];
+  static char lon[20];
+  static char lat_json[32];
+  static char lon_json[32];
+
+  // Conversion DMS
+  int32ToDMSString(latitude, true, lat, sizeof(lat));
+  int32ToDMSString(longitude, false, lon, sizeof(lon));
+
+  // Nettoyage fin de ligne
+  lat[strcspn(lat, "\r\n")] = 0;
+  lon[strcspn(lon, "\r\n")] = 0;
+
+  // Échappement JSON
+  escape_json(lat, lat_json, sizeof(lat_json));
+  escape_json(lon, lon_json, sizeof(lon_json));
+
+  float TempEspCPU = temperatureRead();
+
+  float TempFloat = Temp / 10.0f;
+  float HumFloat = Hum / 10.0f;
+  float UbatFloat = Ubat / 100.0f;
 
   snprintf(json, sizeof(json),
-           "{\"Lat\":\"%s\",\"Lon\":\"%s\",\"Temp\":%d,\"Hum\":%d,\"LumMoy\":%d,"
-           "\"DistFront\":%d,\"DistBack\":%d,\"DistRight\":%d,\"DistLeft\":%d,\"ModMove\":%d,\"Speed\":%d}",
-           lat, lon, Temp, Hum, LumMoy,
-           DistFront, DistBack, DistRight, DistLeft, ModMove, speed);
+           "{\"Lat\":\"%s\",\"Lon\":\"%s\",\"Temp\":%.1f,\"Hum\":%.1f,\"Ubat\":%.2f,\"LumMoy\":%d,"
+           "\"DistFront\":%d,\"DistBack\":%d,\"DistRight\":%d,\"DistLeft\":%d,\"ModMove\":%d,\"Speed\":%d,\"TempEspCPU\":%.1f}",
+           lat_json, lon_json, TempFloat, HumFloat, UbatFloat, LumMoy,
+           DistFront, DistBack, DistRight, DistLeft, ModMove, speed, TempEspCPU);
 
   httpd_resp_set_type(req, "application/json");
   return httpd_resp_send(req, json, strlen(json));
@@ -583,7 +567,16 @@ static esp_err_t data_handler(httpd_req_t *req) {
 
 void startCameraServer() {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-  config.max_uri_handlers = 19;  // Augmentation du nombre de routes
+  config.max_uri_handlers = 20;  // Augmentation du nombre de routes
+  config.core_id = 0;            // NOUVEAU : Serveur principal sur core 0
+  config.task_priority = 5;
+  // config.stack_size = 4096;
+  config.stack_size = 8192;  // default = 4096
+  config.recv_wait_timeout = 10;
+  config.send_wait_timeout = 10;
+  config.max_open_sockets = 4;
+  // config.max_open_sockets = 7;
+  config.lru_purge_enable = true;
 
   httpd_uri_t index_uri = { "/", HTTP_GET, index_handler, NULL };
   httpd_uri_t go_uri = { "/go", HTTP_GET, go_handler, NULL };
@@ -612,8 +605,7 @@ void startCameraServer() {
 
   httpd_uri_t options_uri = { "/*", HTTP_OPTIONS, cors_options_handler, NULL };
 
-  ra_filter_init(&ra_filter, 20);
-  Serial.printf("Starting web server on port: '%d'\n", config.server_port);
+  // Serial.printf("Starting web server on port: '%d'\n", config.server_port);
 
   if (httpd_start(&server_rover, &config) == ESP_OK) {
     httpd_register_uri_handler(server_rover, &index_uri);
@@ -641,19 +633,23 @@ void startCameraServer() {
     httpd_register_uri_handler(server_rover, &uri_data);
 
     httpd_register_uri_handler(server_rover, &options_uri);
-    Serial.println("Web server started successfully.");
+    // Serial.println("Web server started successfully.");
   } else {
-    Serial.println("Failed to start web server.");
+    // Serial.println("Failed to start web server.");
   }
 
   config.server_port += 1;
   config.ctrl_port += 1;
-  Serial.printf("Starting stream server on port: '%d'\n", config.server_port);
+  config.core_id = 0;        // NOUVEAU : Stream sur core 0 (différent!)
+  config.task_priority = 6;  // Priorité plus haute
+  config.stack_size = 8192;  // Stack plus large pour le stream
+
+  // Serial.printf("Starting stream server on port: '%d'\n", config.server_port);
 
   if (httpd_start(&stream_httpd, &config) == ESP_OK) {
     httpd_register_uri_handler(stream_httpd, &stream_uri);
-    Serial.println("Stream server started successfully.");
+    // Serial.println("Stream server started successfully.");
   } else {
-    Serial.println("Failed to start stream server.");
+    // Serial.println("Failed to start stream server.");
   }
 }

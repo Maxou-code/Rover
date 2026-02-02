@@ -1,17 +1,14 @@
 #pragma once
 
 #include <Arduino.h>
-#include <HardwareSerial.h>
-
-extern HardwareSerial SerialMega;
 
 extern int gpLed;
 
-extern int DistFront, DistBack, DistRight, DistLeft, LumMoy, Temp, Hum;
-extern char latitude[20];
-extern char longitude[20];
+extern volatile int DistFront, DistBack, DistRight, DistLeft, LumMoy;
+extern volatile int Temp, Hum, Ubat;
+extern volatile int32_t latitude, longitude;
 
-extern int ModMove;
-extern bool robot_fwd_val;
+extern volatile int ModMove;
+extern volatile bool robot_fwd_val;
 
 extern const char page[];
