@@ -20,7 +20,7 @@ Ce document présente les principales améliorations matérielles nécessaires a
 
 ---
 
-## 🌤️ 2. Remplacement des photorésistances par des modules autonomes
+## 🌤️ 2. Remplacement des photorésistances par des modules autonomes `✅ FAIT`
 
 ### Problème actuel
 - Photorésistances montées sur **planche à pain**
