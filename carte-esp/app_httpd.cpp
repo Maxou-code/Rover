@@ -170,11 +170,6 @@ void sendToMega() {
   Serial.printf("%d,%d,%d,%d,%d\n", AIN1_val, AIN2_val, BIN1_val, BIN2_val, position_servo);
 }
 
-typedef struct {
-  httpd_req_t *req;
-  size_t len;
-} jpg_chunking_t;
-
 #define PART_BOUNDARY "123456789000000000000987654321"
 static const char *_STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
 static const char *_STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
@@ -351,8 +346,6 @@ static esp_err_t status_handler(httpd_req_t *req) {
   httpd_resp_set_type(req, "application/json");
   return httpd_resp_send(req, json_response, len);
 }
-
-// Chaine = DistFront, DistBack, DistRight, DistLeft, LumMoy, Temp, Hum;
 
 static esp_err_t cors_options_handler(httpd_req_t *req) {
   add_cors_headers(req);
@@ -549,6 +542,8 @@ static esp_err_t data_handler(httpd_req_t *req) {
   escape_json(lat, lat_json, sizeof(lat_json));
   escape_json(lon, lon_json, sizeof(lon_json));
 
+  float speedGPSFloat = speedGPS / 10.0f;
+
   float TempEspCPU = temperatureRead();
 
   float TempFloat = Temp / 10.0f;
@@ -556,9 +551,9 @@ static esp_err_t data_handler(httpd_req_t *req) {
   float UbatFloat = Ubat / 100.0f;
 
   snprintf(json, sizeof(json),
-           "{\"Lat\":\"%s\",\"Lon\":\"%s\",\"Temp\":%.1f,\"Hum\":%.1f,\"Ubat\":%.2f,\"LumMoy\":%d,"
+           "{\"Sat\":%d,\"Lat\":\"%s\",\"Lon\":\"%s\",\"Alt\":%d,\"speedGPS\":%.1f,\"Temp\":%.1f,\"Hum\":%.1f,\"Ubat\":%.2f,\"LumMoy\":%d,"
            "\"DistFront\":%d,\"DistBack\":%d,\"DistRight\":%d,\"DistLeft\":%d,\"ModMove\":%d,\"Speed\":%d,\"TempEspCPU\":%.1f}",
-           lat_json, lon_json, TempFloat, HumFloat, UbatFloat, LumMoy,
+           Sat, lat_json, lon_json, altitude, speedGPSFloat, TempFloat, HumFloat, UbatFloat, LumMoy,
            DistFront, DistBack, DistRight, DistLeft, ModMove, speed, TempEspCPU);
 
   httpd_resp_set_type(req, "application/json");
@@ -568,7 +563,6 @@ static esp_err_t data_handler(httpd_req_t *req) {
 void startCameraServer() {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.max_uri_handlers = 20;  // Augmentation du nombre de routes
-  config.core_id = 0;            // NOUVEAU : Serveur principal sur core 0
   config.task_priority = 5;
   // config.stack_size = 4096;
   config.stack_size = 8192;  // default = 4096
@@ -640,7 +634,6 @@ void startCameraServer() {
 
   config.server_port += 1;
   config.ctrl_port += 1;
-  config.core_id = 0;        // NOUVEAU : Stream sur core 0 (différent!)
   config.task_priority = 6;  // Priorité plus haute
   config.stack_size = 8192;  // Stack plus large pour le stream
 

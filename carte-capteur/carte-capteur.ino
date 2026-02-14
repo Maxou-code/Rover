@@ -4,10 +4,6 @@
 #include <Arduino.h>
 #include <math.h>
 
-TinyGPSPlus gps;
-
-Servo ServoCam;
-
 #define PIN_PDT A7
 
 #define AIN1_PIN 33
@@ -22,6 +18,35 @@ Servo ServoCam;
 #define DHT_TYPE DHT22
 DHT dht(DHT_PIN, DHT_TYPE);
 float temp, hum;
+
+TinyGPSPlus gps;
+
+// --------------------------
+// UBX pour activer Galileo
+// Compatible u-blox M8N / M9N
+// --------------------------
+uint8_t enableGalileo[] = {
+  0xB5,0x62,0x06,0x3E,0x3C,0x00,
+  0x00,0x00,0x20,0x07,
+  0x00,0x08,0x10,0x00,0x01,0x00,0x01,0x01,
+  0x00,0x08,0x10,0x00,0x01,0x00,0x01,0x01,
+  0x00,0x08,0x10,0x00,0x01,0x00,0x01,0x01,
+  0x00,0x08,0x10,0x00,0x01,0x00,0x01,0x01,
+  0x00,0x08,0x10,0x00,0x01,0x00,0x01,0x01,
+  0x00,0x08,0x10,0x00,0x01,0x00,0x01,0x01,
+  0x00,0x00
+};
+
+// UBX pour sauvegarder en mémoire permanente
+uint8_t saveConfig[] = {
+  0xB5,0x62,0x06,0x09,0x0D,0x00,
+  0x00,0x00,0x00,0x00,
+  0xFF,0xFF,0x00,0x00,
+  0x00,0x00,0x00,0x00,
+  0x00,0x00
+};
+
+Servo ServoCam;
 
 float Vref = 5.0;
 float diviseur = 3.07;
@@ -57,7 +82,9 @@ int Distance_AD, Distance_Ar, Distance_D, Distance_G, Distance_AG;
 
 int Distance_A;
 
-double lat, lng;
+int sat;
+double lat = 0;
+double lng = 0;
 
 int led_on = 4;
 
@@ -159,6 +186,14 @@ void setup() {
   Serial1.begin(9600);    // GPS
   Serial2.begin(115200);  // ESP
 
+  delay(2000);
+
+  Serial1.write(enableGalileo, sizeof(enableGalileo));
+  delay(500);
+
+  // Sauvegarder en mémoire
+  Serial1.write(saveConfig, sizeof(saveConfig));
+
   dht.begin();
 
   pinMode(photo_1, INPUT);
@@ -193,11 +228,11 @@ void setup() {
   ServoCam.write(SERVO_val);
 
   // Attente de la première position GPS valide
-  while (!gps.location.isValid()) {
-    while (Serial1.available() > 0) {
-      gps.encode(Serial1.read());
-    }
-  }
+  // while (!gps.location.isValid()) {
+  //   while (Serial1.available() > 0) {
+  //     gps.encode(Serial1.read());
+  //   }
+  // }
 
   digitalWrite(led_on, HIGH);
 }
@@ -237,6 +272,8 @@ void loop() {
       }
     }
   }
+
+  while (Serial1.available()) gps.encode(Serial1.read());
 
   // Mise à jour des capteurs (inchangé)
   if (millis() - lastSensorUpdate >= SENSOR_INTERVAL) {
@@ -340,17 +377,25 @@ void updateSensors() {
   Ubat = val * (Vref / 1023.0) * diviseur;
   Ubat100 = (int)(Ubat * 100.0f + 0.5f);
 
-  // GPS
-  while (Serial1.available()) {
-    gps.encode(Serial1.read());
-    if (gps.location.isUpdated()) {
-      lat = gps.location.lat();
-      lng = gps.location.lng();
-    }
+  sat = gps.satellites.value();
+
+  int32_t latE7 = 0;
+  int32_t lngE7 = 0;
+  int32_t alt_int = 0;
+  int32_t spd_int = 0;
+
+  if (gps.location.isValid() && gps.location.age() < 2000 && sat >= 6 && gps.hdop.hdop() < 2.5) {
+      latE7 = (int32_t)(gps.location.lat() * 10000000.0);
+      lngE7 = (int32_t)(gps.location.lng() * 10000000.0);
   }
 
-  int32_t latE7 = lat * 1e7;
-  int32_t lngE7 = lng * 1e7;
+  if (gps.altitude.isValid() && gps.altitude.age() < 2000 && sat >= 6) {
+      alt_int = (int32_t)gps.altitude.meters();
+  }
+
+  if (gps.speed.isValid() && gps.speed.age() < 2000) {
+      spd_int = (int32_t)(gps.speed.kmph() * 10.0);
+  }
 
   // Envoi des données
   Serial2.print(Distance_A);
@@ -369,29 +414,14 @@ void updateSensors() {
   Serial2.print(",");
   Serial2.print(Ubat100);
   Serial2.print(",");
+  Serial2.print(sat);
+  Serial2.print(",");
   Serial2.print(latE7);
   Serial2.print(",");
   Serial2.print(lngE7);
-  // printDMS(lat, true);
-  // Serial2.print(",");
-  // printDMS(lng, false);
+  Serial2.print(",");
+  Serial2.print(alt_int);
+  Serial2.print(",");
+  Serial2.print(spd_int);
   Serial2.println();
 }
-
-// void printDMS(double coord, bool isLatitude) {
-//   char direction = (isLatitude ? (coord >= 0 ? 'N' : 'S') : (coord >= 0 ? 'E' : 'W'));
-//   coord = abs(coord);
-
-//   int degrees = int(coord);
-//   double minutesDecimal = (coord - degrees) * 60;
-//   int minutes = int(minutesDecimal);
-//   double seconds = (minutesDecimal - minutes) * 60;
-
-//   Serial2.print(degrees);
-//   Serial2.print("°");
-//   Serial2.print(minutes);
-//   Serial2.print("'");
-//   Serial2.print(seconds, 2);
-//   Serial2.print("\"");
-//   Serial2.print(direction);
-// }

@@ -13,7 +13,7 @@
 - DHT22 (Température et humidité)
 - 4 photorésistances
 - 5 capteurs ultrason HC-SR04P
-- Module GPS TEL0094
+- Module GPS TEL0094 (Connecteur : JST SH 6pins 1,0mm)
 
 ## 💡 Éléments lumineux
 - LED

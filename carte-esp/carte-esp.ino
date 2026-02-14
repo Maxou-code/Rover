@@ -41,8 +41,8 @@ int gpLed = 4;
 
 // Variables
 volatile int DistFront, DistBack, DistRight, DistLeft, LumMoy;
-volatile int Temp, Hum, Ubat;
-volatile int32_t latitude, longitude;
+volatile int Temp, Hum, Ubat, Sat;
+volatile int32_t latitude, longitude, altitude, speedGPS;
 
 unsigned long lastFrameTime = 0;
 
@@ -57,8 +57,6 @@ void setup() {
   pinMode(gpLed, OUTPUT);
   digitalWrite(gpLed, LOW);
 
-  xTaskCreatePinnedToCore(serialTask, "SerialTask", 4096, NULL, 2, NULL, 1);
-
   // Désactive Bluetooth
   esp_bt_controller_disable();
   esp_bt_controller_deinit();
@@ -72,6 +70,28 @@ void setup() {
 
 void loop() {
   ArduinoOTA.handle();
+
+  static char buffer[512];
+  static uint8_t index = 0;
+  int count = 0;
+
+  while (Serial.available()) {
+    char c = Serial.read();
+
+    if (c == '\n') {
+      buffer[index] = '\0';
+      index = 0;
+      parseFrame(buffer);
+      count = 0;
+    } else if (index < sizeof(buffer) - 1) {
+      buffer[index++] = c;
+    }
+
+    if (++count >= 50) {
+      count = 0;
+      yield();  // laisse respirer Wi-Fi/TCP/IP
+    }
+  }
 
   // FAILSAFE : plus de trame depuis > 1200 ms
   if (millis() - lastFrameTime > 1200) {
@@ -89,63 +109,32 @@ void loop() {
   yield();
 }
 
-void serialTask(void* parameter) {
-  static char buffer[256];
-  static uint8_t index = 0;
-  int count = 0;
-
-  while (true) {  // boucle infinie pour la tâche
-    while (Serial.available()) {
-      char c = Serial.read();
-
-      if (c == '\n') {
-        buffer[index] = '\0';
-        index = 0;
-        parseFrame(buffer);
-        count = 0;
-      } else if (index < sizeof(buffer) - 1) {
-        buffer[index++] = c;
-      }
-
-      if (++count >= 50) {
-        count = 0;
-        yield();  // laisse respirer Wi-Fi/TCP/IP
-      }
-    }
-    vTaskDelay(50);  // éviter 100% CPU si pas de données
-  }
-}
-
 inline char* nextField(char* p) {
+  if (!p) return nullptr;
   char* c = strchr(p, ',');
   if (!c) return nullptr;
+  *c = '\0';  // Terminer la chaîne à la virgule
   return c + 1;
 }
 
 void parseFrame(char* buf) {
   char* p = buf;
 
-  DistFront = atoi(p);
-  p = nextField(p);
-  DistBack = atoi(p);
-  p = nextField(p);
-  DistRight = atoi(p);
-  p = nextField(p);
-  DistLeft = atoi(p);
-  p = nextField(p);
+  DistFront = atoi(p); p = nextField(p);
+  DistBack  = p ? atoi(p) : 0; p = nextField(p);
+  DistRight = p ? atoi(p) : 0; p = nextField(p);
+  DistLeft  = p ? atoi(p) : 0; p = nextField(p);
 
-  LumMoy = atoi(p);
-  p = nextField(p);
-  Temp = atoi(p);
-  p = nextField(p);
-  Hum = atoi(p);
-  p = nextField(p);
-  Ubat = atoi(p);
-  p = nextField(p);
+  LumMoy = p ? atoi(p) : 0; p = nextField(p);
+  Temp   = p ? atoi(p) : 0; p = nextField(p);
+  Hum    = p ? atoi(p) : 0; p = nextField(p);
+  Ubat   = p ? atoi(p) : 0; p = nextField(p);
 
-  latitude = atol(p);
-  p = nextField(p);
-  longitude = atol(p);
+  Sat    = p ? atoi(p) : 0; p = nextField(p);
+  latitude  = p ? atol(p) : 0; p = nextField(p);
+  longitude = p ? atol(p) : 0; p = nextField(p);
+  altitude  = p ? atol(p) : 0; p = nextField(p);
+  speedGPS  = p ? atol(p) : 0;
 
   lastFrameTime = millis();
 }
@@ -245,14 +234,21 @@ void ota_setup() {
   ArduinoOTA.setPassword("123456");
 
   ArduinoOTA.onStart([]() {
-    const char* type =
-      (ArduinoOTA.getCommand() == U_FLASH) ? "sketch" : "filesystem";
+    // const char* type = (ArduinoOTA.getCommand() == U_FLASH) ? "sketch" : "filesystem";
+
     // Serial.print("OTA Start: updating ");
     // Serial.println(type);
+
+    Serial.flush();
+    Serial.end();
+
+    robot_stop();          // sécurité
+    esp_camera_deinit();   // TRÈS recommandé
   });
 
   ArduinoOTA.onEnd([]() {
     // Serial.println("OTA End\n");
+    delay(100);
     ESP.restart();
   });
 
@@ -273,7 +269,7 @@ void ota_setup() {
     // }
   });
 
-  ArduinoOTA.setTimeout(60000);
+  ArduinoOTA.setTimeout(120000);
 
   ArduinoOTA.begin();
   // Serial.println("OTA Ready");

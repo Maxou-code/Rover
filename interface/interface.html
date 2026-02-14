@@ -70,7 +70,6 @@
 		width: 100%;
 		max-width: 750px;
 		border-radius: 8px;
-		transform: rotate(180deg);
 	}
 
 	.button-row {
@@ -163,6 +162,7 @@
 
 	async function updateData() {
 		const errorP = document.getElementById("error");
+		const modMove = document.getElementById("mod-move");
 
 		try {
 			const r = await fetch("/data");
@@ -183,8 +183,6 @@
 				hasError = false;
 			}
 
-			lat.textContent = data.Lat;
-			lon.textContent = data.Lon;
 			temp.textContent = data.Temp;
 			hum.textContent = data.Hum;
 			lum.textContent = data.LumMoy;
@@ -194,7 +192,15 @@
 			dist_back.textContent = data.DistBack;
 			dist_right.textContent = data.DistRight;
 			dist_left.textContent = data.DistLeft;
-			mod_move.textContent = data.ModMove;
+
+			sat.textContent = data.Sat;
+			lat.textContent = data.Lat;
+			lon.textContent = data.Lon;
+			alt.textContent = data.Alt;
+			speedGPS.textContent = data.speedGPS;
+
+			modMove.value = data.ModMove;
+
 			speed.textContent = data.Speed;
 
 			speedVal = data.Speed;
@@ -312,6 +318,52 @@
 			getsend("stop");
 		}
 	});
+
+	function sendCommand(variable, valeur) {
+		fetch(`/control?var=${variable}&val=${valeur}`);
+	}
+
+	let camHasError = false;
+
+	async function updateCameraData() {
+		const errorP = document.getElementById("error-cam");
+		const framesizeSelector = document.getElementById("framesize-selector");
+
+		try {
+			const r = await fetch("/status");
+
+			if (!r.ok) {
+				throw new Error("Erreur HTTP : " + r.status);
+			}
+
+			const data = await r.json();
+
+			if (!data || typeof data !== "object") {
+				throw new Error("Données invalides reçues");
+			}
+
+			// si tout refonctionne, on efface l'erreur
+			if (camHasError) {
+				errorP.textContent = "";
+				camHasError = false;
+			}
+
+			framesizeSelector.value = data.framesize;
+
+		} catch (err) {
+			console.error(err);
+
+			// affiche l’erreur une seule fois
+			if (!camHasError) {
+				errorP.textContent = "Erreur : " + err.message;
+				camHasError = true;
+			}
+		}
+	}
+
+	document.addEventListener("DOMContentLoaded", () => {
+		updateCameraData();
+	});
 	</script>
 </head>
 
@@ -322,8 +374,6 @@
 		<div class="card no-select">
 			<fieldset style="display: flex;flex-direction: column;gap: 5px;">
 				<legend>Capteurs</legend>
-				<p>Latitude : <span id="lat">NC</span></p>
-				<p>Longitude : <span id="lon">NC</span></p>
 				<p>Température : <span id="temp">0</span>°C</p>
 				<p>Humidité : <span id="hum">0</span>%</p>
 				<p>Luminosité : <span id="lum">0</span> Lux</p>
@@ -333,16 +383,50 @@
 				<p>Distance gauche : <span id="dist_left">0</span> cm</p>
 				<p>Batterie : <span id="ubat">0</span> V</p>
 				<p>ESP CPU : <span id="temp_esp_cpu">0</span>°C</p>
+				<p id="error"></p>
 			</fieldset>
 			<fieldset>
 				<legend>Mode de déplacement</legend>
-				<p>Mode : <span id="mod_move">0</span></p>
-				<div class="button-row">
-					<button class="mode" onmousedown="getsend('mod_0')">0</button>
-					<button class="mode" onmousedown="getsend('mod_1')">1</button>
-				</div>
+				<p style="display:flex;justify-content: space-between;">
+					Mode : 
+					<select name="mod-move" id="mod-move" onchange="getsend('mod_' + this.value)">
+						<option value="0">Manuel</option>
+						<option value="1">Auto Stop</option>
+					</select>
+				</p>
 			</fieldset>
-			<p id="error"></p>
+			<fieldset>
+				<legend>GPS</legend>
+				<p style="display:flex;justify-content: space-between;">
+					<p>Satellites : <span id="sat">0</span></p>
+					<p>Latitude : <span id="lat">NC</span></p>
+					<p>Longitude : <span id="lon">NC</span></p>
+					<p>Altitude : <span id="alt">0</span> m</p>
+					<p>Vitesse GPS : <span id="speedGPS">0</span> km/h</p>
+				</p>
+				<p id="error-cam"></p>
+			</fieldset>
+			<fieldset>
+				<legend>Caméra</legend>
+				<p style="display:flex;justify-content: space-between;">
+				    Résolution :
+				    <select name="framesize-selector" id="framesize-selector" onchange="sendCommand('framesize', this.value)">
+				        <option value="1">QQVGA</option>
+				        <option value="3">QCIF</option>
+				        <option value="4">HQVGA</option>
+				        <option value="6">QVGA</option>
+				        <option value="8">CIF</option>
+				        <option value="9">HVGA</option>
+				        <option value="10">VGA</option>
+				        <option value="11">SVGA</option>
+				        <option value="12">XGA</option>
+				        <option value="13">HD</option>
+				        <option value="14">SXGA</option>
+				        <option value="15">UXGA</option>
+				    </select>
+				</p>
+				<p id="error-cam"></p>
+			</fieldset>
 		</div>
 		<!-- Caméra -->
 		<div class="card image no-select">
