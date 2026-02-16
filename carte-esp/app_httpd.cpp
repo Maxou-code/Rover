@@ -11,8 +11,11 @@
     break; \
   }
 
-#define PWMA 12
-#define PWMB 13
+#define PWMA_PIN 12
+#define PWMB_PIN 13
+
+#define PWMA 0
+#define PWMB 1
 
 int position_servo = 90;
 
@@ -41,14 +44,18 @@ void camera_right();
 void camera_center();
 
 void robot_setup() {
-  // Serial.println("Start robot setup");
-  const int pwmFreq = 20000;  // 20 kHz
-  const int pwmRes = 8;       // 0–255
+  const int pwmFreq = 20000;
+  const int pwmRes = 8;
 
-  ledcAttach(PWMA, pwmFreq, pwmRes);
-  ledcAttach(PWMB, pwmFreq, pwmRes);
+  // Configuration d'abord
+  ledcSetup(0, pwmFreq, pwmRes);
+  ledcAttachPin(PWMA_PIN, PWMA);
+
+  ledcSetup(1, pwmFreq, pwmRes);
+  ledcAttachPin(PWMB_PIN, PWMB);
 
   pinMode(33, OUTPUT);
+
   robot_stop();
   sendToMega();
 }
@@ -173,7 +180,6 @@ void sendToMega() {
 #define PART_BOUNDARY "123456789000000000000987654321"
 static const char *_STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
 static const char *_STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
-static const char *_STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
 
 httpd_handle_t stream_httpd = NULL;
 httpd_handle_t server_rover = NULL;
@@ -354,6 +360,9 @@ static esp_err_t cors_options_handler(httpd_req_t *req) {
 
 static esp_err_t index_handler(httpd_req_t *req) {
   add_cors_headers(req);
+
+  const char page[] PROGMEM = R"rawliteral(Utilisez la page index.html en serveur local)rawliteral";
+
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, page, HTTPD_RESP_USE_STRLEN);
 }
@@ -551,7 +560,7 @@ static esp_err_t data_handler(httpd_req_t *req) {
   float UbatFloat = Ubat / 100.0f;
 
   snprintf(json, sizeof(json),
-           "{\"Sat\":%d,\"Lat\":\"%s\",\"Lon\":\"%s\",\"Alt\":%d,\"speedGPS\":%.1f,\"Temp\":%.1f,\"Hum\":%.1f,\"Ubat\":%.2f,\"LumMoy\":%d,"
+           "{\"Sat\":%d,\"Lat\":\"%s\",\"Lon\":\"%s\",\"Alt\":%ld,\"speedGPS\":%.1f,\"Temp\":%.1f,\"Hum\":%.1f,\"Ubat\":%.2f,\"LumMoy\":%d,"
            "\"DistFront\":%d,\"DistBack\":%d,\"DistRight\":%d,\"DistLeft\":%d,\"ModMove\":%d,\"Speed\":%d,\"TempEspCPU\":%.1f}",
            Sat, lat_json, lon_json, altitude, speedGPSFloat, TempFloat, HumFloat, UbatFloat, LumMoy,
            DistFront, DistBack, DistRight, DistLeft, ModMove, speed, TempEspCPU);
@@ -572,32 +581,32 @@ void startCameraServer() {
   // config.max_open_sockets = 7;
   config.lru_purge_enable = true;
 
-  httpd_uri_t index_uri = { "/", HTTP_GET, index_handler, NULL };
-  httpd_uri_t go_uri = { "/go", HTTP_GET, go_handler, NULL };
-  httpd_uri_t back_uri = { "/back", HTTP_GET, back_handler, NULL };
-  httpd_uri_t stop_uri = { "/stop", HTTP_GET, stop_handler, NULL };
-  httpd_uri_t left_uri = { "/left", HTTP_GET, left_handler, NULL };
-  httpd_uri_t right_uri = { "/right", HTTP_GET, right_handler, NULL };
-  httpd_uri_t ledon_uri = { "/ledon", HTTP_GET, ledon_handler, NULL };
-  httpd_uri_t ledoff_uri = { "/ledoff", HTTP_GET, ledoff_handler, NULL };
+  httpd_uri_t index_uri = { "/", HTTP_GET, index_handler, NULL, false, false, NULL };
+  httpd_uri_t go_uri = { "/go", HTTP_GET, go_handler, NULL, false, false, NULL };
+  httpd_uri_t back_uri = { "/back", HTTP_GET, back_handler, NULL, false, false, NULL };
+  httpd_uri_t stop_uri = { "/stop", HTTP_GET, stop_handler, NULL, false, false, NULL };
+  httpd_uri_t left_uri = { "/left", HTTP_GET, left_handler, NULL, false, false, NULL };
+  httpd_uri_t right_uri = { "/right", HTTP_GET, right_handler, NULL, false, false, NULL };
+  httpd_uri_t ledon_uri = { "/ledon", HTTP_GET, ledon_handler, NULL, false, false, NULL };
+  httpd_uri_t ledoff_uri = { "/ledoff", HTTP_GET, ledoff_handler, NULL, false, false, NULL };
 
-  httpd_uri_t cam_left_uri = { "/cam_left", HTTP_GET, cam_left_handler, NULL };
-  httpd_uri_t cam_right_uri = { "/cam_right", HTTP_GET, cam_right_handler, NULL };
-  httpd_uri_t cam_center_uri = { "/cam_center", HTTP_GET, cam_center_handler, NULL };
+  httpd_uri_t cam_left_uri = { "/cam_left", HTTP_GET, cam_left_handler, NULL, false, false, NULL };
+  httpd_uri_t cam_right_uri = { "/cam_right", HTTP_GET, cam_right_handler, NULL, false, false, NULL };
+  httpd_uri_t cam_center_uri = { "/cam_center", HTTP_GET, cam_center_handler, NULL, false, false, NULL };
 
-  httpd_uri_t mod_0_uri = { "/mod_0", HTTP_GET, move_standart_handler, NULL };
-  httpd_uri_t mod_1_uri = { "/mod_1", HTTP_GET, move_stop_obstacle_handler, NULL };
+  httpd_uri_t mod_0_uri = { "/mod_0", HTTP_GET, move_standart_handler, NULL, false, false, NULL };
+  httpd_uri_t mod_1_uri = { "/mod_1", HTTP_GET, move_stop_obstacle_handler, NULL, false, false, NULL };
 
-  httpd_uri_t up_speed_uri = { "/up_speed", HTTP_GET, up_speed_handler, NULL };
-  httpd_uri_t down_speed_uri = { "/down_speed", HTTP_GET, down_speed_handler, NULL };
+  httpd_uri_t up_speed_uri = { "/up_speed", HTTP_GET, up_speed_handler, NULL, false, false, NULL };
+  httpd_uri_t down_speed_uri = { "/down_speed", HTTP_GET, down_speed_handler, NULL, false, false, NULL };
 
-  httpd_uri_t status_uri = { "/status", HTTP_GET, status_handler, NULL };
-  httpd_uri_t cmd_uri = { "/control", HTTP_GET, cmd_handler, NULL };
-  httpd_uri_t capture_uri = { "/capture", HTTP_GET, capture_handler, NULL };
-  httpd_uri_t uri_data = { "/data", HTTP_GET, data_handler, NULL };
-  httpd_uri_t stream_uri = { "/stream", HTTP_GET, stream_handler, NULL };
+  httpd_uri_t status_uri = { "/status", HTTP_GET, status_handler, NULL, false, false, NULL };
+  httpd_uri_t cmd_uri = { "/control", HTTP_GET, cmd_handler, NULL, false, false, NULL };
+  httpd_uri_t capture_uri = { "/capture", HTTP_GET, capture_handler, NULL, false, false, NULL };
+  httpd_uri_t uri_data = { "/data", HTTP_GET, data_handler, NULL, false, false, NULL };
+  httpd_uri_t stream_uri = { "/stream", HTTP_GET, stream_handler, NULL, false, false, NULL };
 
-  httpd_uri_t options_uri = { "/*", HTTP_OPTIONS, cors_options_handler, NULL };
+  httpd_uri_t options_uri = { "/*", HTTP_OPTIONS, cors_options_handler, NULL, false, false, NULL };
 
   // Serial.printf("Starting web server on port: '%d'\n", config.server_port);
 

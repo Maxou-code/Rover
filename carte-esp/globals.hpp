@@ -2,6 +2,12 @@
 
 #include <Arduino.h>
 
+extern void robot_stop();
+extern void robot_setup();
+extern void camera_setup();
+extern void wifi_setup();
+extern void ota_setup();
+
 extern int gpLed;
 
 extern volatile int DistFront, DistBack, DistRight, DistLeft, LumMoy;

@@ -12,6 +12,7 @@ const char* password = "12345678";
 
 extern void robot_stop();
 extern void robot_setup();
+void parseFrame(char* buf);
 
 #if defined(CAMERA_MODEL_AI_THINKER)
 #define PWDN_GPIO_NUM 32
@@ -156,8 +157,8 @@ void camera_setup() {
   config.pin_pclk = PCLK_GPIO_NUM;
   config.pin_vsync = VSYNC_GPIO_NUM;
   config.pin_href = HREF_GPIO_NUM;
-  config.pin_sscb_sda = SIOD_GPIO_NUM;
-  config.pin_sscb_scl = SIOC_GPIO_NUM;
+  config.pin_sccb_sda = SIOD_GPIO_NUM;
+  config.pin_sccb_scl = SIOC_GPIO_NUM;
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 20000000;
