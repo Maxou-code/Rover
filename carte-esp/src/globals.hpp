@@ -10,6 +10,8 @@ extern void ota_setup();
 
 extern int gpLed;
 
+extern int ps_ram;
+
 extern volatile int DistFront, DistBack, DistRight, DistLeft, LumMoy;
 
 extern volatile int Temp, Hum, Ubat, Sat;

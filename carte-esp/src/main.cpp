@@ -12,6 +12,7 @@ const char* password = "12345678";
 
 extern void robot_stop();
 extern void robot_setup();
+
 void parseFrame(char* buf);
 
 #if defined(CAMERA_MODEL_AI_THINKER)
@@ -45,6 +46,8 @@ volatile int DistFront, DistBack, DistRight, DistLeft, LumMoy;
 volatile int Temp, Hum, Ubat, Sat;
 volatile int32_t latitude, longitude, altitude, speedGPS;
 
+int ps_ram;
+
 unsigned long lastFrameTime = 0;
 
 void startCameraServer();
@@ -61,6 +64,12 @@ void setup() {
   // Désactive Bluetooth
   esp_bt_controller_disable();
   esp_bt_controller_deinit();
+
+  if (psramFound()) {
+    ps_ram = 1;
+  } else {
+    ps_ram = 0;
+  }
 
   camera_setup();
   wifi_setup();
@@ -165,7 +174,7 @@ void camera_setup() {
   config.pixel_format = PIXFORMAT_JPEG;
 
   // Configuration optimale pour streaming fluide
-  if (psramFound()) {
+  if (ps_ram == 1) {
     config.frame_size = FRAMESIZE_VGA;  // 640x480 si PSRAM
     config.jpeg_quality = 10;
     config.fb_count = 2;                    // Double buffering !

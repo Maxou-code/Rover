@@ -361,7 +361,7 @@ static esp_err_t cors_options_handler(httpd_req_t *req) {
 static esp_err_t index_handler(httpd_req_t *req) {
   add_cors_headers(req);
 
-  const char page[] PROGMEM = R"rawliteral(Utilisez la page index.html en serveur local)rawliteral";
+  const char page[] PROGMEM = R"rawliteral(Utilisez la page index.html en serveur local (v 1.0.1))rawliteral";
 
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, page, HTTPD_RESP_USE_STRLEN);
