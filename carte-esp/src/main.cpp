@@ -216,14 +216,16 @@ void camera_setup() {
     s->set_wpc(s, 1);                         // white pixel correction
     s->set_raw_gma(s, 1);                     // gamma correction
     s->set_lenc(s, 1);                        // lens correction
-    s->set_hmirror(s, 1);                     // 1 = miroir horizontal
-    s->set_vflip(s, 1);                       // 1 = flip vertical
+    s->set_hmirror(s, 0);                     // 1 = miroir horizontal
+    s->set_vflip(s, 0);                       // 1 = flip vertical
     s->set_dcw(s, 1);                         // downsize enable
     s->set_colorbar(s, 0);                    // 0 = pas de colorbar
   }
 }
 
 void wifi_setup() {
+  // netsh wlan show interfaces
+
   WiFi.mode(WIFI_AP);
 
   // WiFi.setSleep(false);
