@@ -367,6 +367,76 @@
 	document.addEventListener("DOMContentLoaded", () => {
 		updateCameraData();
 	});
+
+	function map(value, inMin, inMax, outMin, outMax) {
+		const result = (value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
+		return Math.round(Math.min(Math.max(result, outMin), outMax));
+	}
+
+	const roverState = {
+		servoX: 90,
+		servoY: 90,
+		ledEnabled: 1
+	};
+
+	document.addEventListener("DOMContentLoaded", () => {
+		document.getElementById("connect").addEventListener("click", async () => {
+
+			const port = await navigator.serial.requestPort();
+			await port.open({ baudRate: 9600 });
+
+			const decoder = new TextDecoderStream();
+			port.readable.pipeTo(decoder.writable);
+			const reader = decoder.readable.getReader();
+
+			let buffer = "";
+
+			while (true) {
+				const { value, done } = await reader.read();
+				if (done) break;
+
+				buffer += value;
+
+				const lines = buffer.split("\n");
+				buffer = lines.pop();
+
+				for (let line of lines) {
+					line = line.trim();
+					if (!line) continue;
+
+					const parts = line.split(",");
+
+					if (parts.length === 3 && parts.every(p => !isNaN(p))) {
+						let newServoX = Number(parts[0]);
+						let newServoY = Number(parts[1]);
+						let newLed = Number(parts[2]);
+
+						newServoX = map(newServoX, 0, 1023, 35, 145);
+						newServoY = map(newServoY, 0, 1023, 45, 135);
+						newServoY = 180 - newServoY;
+
+						// Détection changement servo X
+						if (newServoX !== roverState.servoX) {
+							sendCommand("servo_x", newServoX);
+						}
+
+						// Détection changement servo Y
+						if (newServoY !== roverState.servoY) {
+							sendCommand("servo_y", newServoY);
+						}
+
+						if (newLed === 0 && roverState.ledEnabled === 1) {
+							getsend("switch_led");
+						}
+
+						roverState.servoX = newServoX;
+						roverState.servoY = newServoY;
+						roverState.ledEnabled = newLed;
+					}
+				}
+			}
+		});
+	});
 	</script>
 </head>
 
@@ -412,49 +482,58 @@
 			<fieldset>
 				<legend>Caméra</legend>
 				<p style="display:flex;justify-content: space-between;">
-				    Résolution :
-				    <select name="framesize-selector" id="framesize-selector" onchange="sendCommand('framesize', this.value)">
-				        <option value="1">QQVGA</option>
-				        <option value="2">QCIF</option>
-				        <option value="3">HQVGA</option>
-				        <option value="5">QVGA</option>
-				        <option value="6">CIF</option>
-				        <option value="7">HVGA</option>
-				        <option value="8">VGA</option>
-				        <option value="9">SVGA</option>
-				        <option value="10">XGA</option>
-				        <option value="11">HD</option>
-				        <option value="12">SXGA</option>
-				        <option value="13">UXGA</option>
-				    </select>
+					Résolution :
+					<select name="framesize-selector" id="framesize-selector" onchange="sendCommand('framesize', this.value)">
+						<option value="1">QQVGA</option>
+						<option value="2">QCIF</option>
+						<option value="3">HQVGA</option>
+						<option value="5">QVGA</option>
+						<option value="6">CIF</option>
+						<option value="7">HVGA</option>
+						<option value="8">VGA</option>
+						<option value="9">SVGA</option>
+						<option value="10">XGA</option>
+						<option value="11">HD</option>
+						<option value="12">SXGA</option>
+						<option value="13">UXGA</option>
+					</select>
 				</p>
 				<p style="display:flex;justify-content: space-between;">
 					Qualité :
-				    <select name="quality-selector" id="quality-selector" onchange="sendCommand('quality', this.value)">
-				        <option value="5">5</option>
-				        <option value="6">6</option>
-				        <option value="7">7</option>
-				        <option value="8">8</option>
-				        <option value="9">9</option>
-				        <option value="10">10</option>
-				        <option value="12">12</option>
-				        <option value="15">15</option>
-				        <option value="20">20</option>
-				        <option value="30">30</option>
-				        <option value="40">40</option>
-				        <option value="50">50</option>
-				    </select>
+					<select name="quality-selector" id="quality-selector" onchange="sendCommand('quality', this.value)">
+						<option value="5">5</option>
+						<option value="6">6</option>
+						<option value="7">7</option>
+						<option value="8">8</option>
+						<option value="9">9</option>
+						<option value="10">10</option>
+						<option value="12">12</option>
+						<option value="15">15</option>
+						<option value="20">20</option>
+						<option value="30">30</option>
+						<option value="40">40</option>
+						<option value="50">50</option>
+					</select>
 				</p>
 				<p id="error-cam"></p>
+			</fieldset>
+			<fieldset>
+				<legend>Contrôleur</legend>
+				<button id="connect">Ajouter</button>
 			</fieldset>
 		</div>
 		<!-- Caméra -->
 		<div class="card image no-select">
 			<img src="http://192.168.4.1:81/stream" alt="Stream" class="video">
 			<div class="button-row">
-				<button class="button-cam" onmousedown="getsend('cam_left')">Gauche</button>
-				<button class="button-cam" onmousedown="getsend('cam_center')">Centre</button>
-				<button class="button-cam" onmousedown="getsend('cam_right')">Droite</button>
+				<button class="button-cam" onmousedown="sendCommand('servo_x', 135)">Gauche</button>
+				<button class="button-cam" onmousedown="sendCommand('servo_x', 90)">Centre</button>
+				<button class="button-cam" onmousedown="sendCommand('servo_x', 45)">Droite</button>
+			</div>
+			<div class="button-row">
+				<button class="button-cam" onmousedown="sendCommand('servo_y', 70)">Haut</button>
+				<button class="button-cam" onmousedown="sendCommand('servo_y', 90)">Centre</button>
+				<button class="button-cam" onmousedown="sendCommand('servo_y', 110)">Bas</button>
 			</div>
 		</div>
 		<!-- Contrôles -->
@@ -478,8 +557,7 @@
 				</div>
 			</div>
 			<div class="button-row">
-				<button class="yellow" onmousedown="getsend('ledon')">Lumière ON</button>
-				<button class="yellow" onmousedown="getsend('ledoff')">Lumière OFF</button>
+				<button class="yellow" onmousedown="getsend('switch_led')">Lumière ON/OFF</button>
 			</div>
 		</div>
 	</section>

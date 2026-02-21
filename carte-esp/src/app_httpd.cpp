@@ -17,7 +17,8 @@
 #define PWMA 0
 #define PWMB 1
 
-int position_servo = 90;
+int position_servo_x = 90;
+int position_servo_y = 90;
 
 int AIN1_val = 0;
 int AIN2_val = 0;
@@ -29,6 +30,8 @@ int speed = 100;
 
 volatile int ModMove = 0;
 volatile bool robot_fwd_val = false;
+
+bool ledState = false;
 
 void sendToMega();
 
@@ -138,33 +141,15 @@ void robot_left() {
   sendToMega();
 }
 
-void camera_left() {
-  if (position_servo < 180) {
-    position_servo += 10;
-  }
-  sendToMega();
-}
-
-void camera_right() {
-  if (position_servo > 0) {
-    position_servo -= 10;
-  }
-  sendToMega();
-}
-
-void camera_center() {
-  position_servo = 90;
-  sendToMega();
-}
-
 void sendToMega() {
   static int last_AIN1 = -1;
   static int last_AIN2 = -1;
   static int last_BIN1 = -1;
   static int last_BIN2 = -1;
-  static int last_servo = -1;
+  static int last_servo_x = -1;
+  static int last_servo_y = -1;
 
-  if (AIN1_val == last_AIN1 && AIN2_val == last_AIN2 && BIN1_val == last_BIN1 && BIN2_val == last_BIN2 && position_servo == last_servo) {
+  if (AIN1_val == last_AIN1 && AIN2_val == last_AIN2 && BIN1_val == last_BIN1 && BIN2_val == last_BIN2 && position_servo_x == last_servo_x && position_servo_y == last_servo_y) {
     return;  // rien à envoyer
   }
 
@@ -172,9 +157,10 @@ void sendToMega() {
   last_AIN2 = AIN2_val;
   last_BIN1 = BIN1_val;
   last_BIN2 = BIN2_val;
-  last_servo = position_servo;
+  last_servo_x = position_servo_x;
+  last_servo_y = position_servo_y;
 
-  Serial.printf("%d,%d,%d,%d,%d\n", AIN1_val, AIN2_val, BIN1_val, BIN2_val, position_servo);
+  Serial.printf("%d,%d,%d,%d,%d,%d\n", AIN1_val, AIN2_val, BIN1_val, BIN2_val, position_servo_x, position_servo_y);
 }
 
 #define PART_BOUNDARY "123456789000000000000987654321"
@@ -318,6 +304,9 @@ static esp_err_t cmd_handler(httpd_req_t *req) {
   else if (!strcmp(variable, "special_effect")) res = s->set_special_effect(s, val);
   else if (!strcmp(variable, "wb_mode")) res = s->set_wb_mode(s, val);
   else if (!strcmp(variable, "ae_level")) res = s->set_ae_level(s, val);
+
+  else if (!strcmp(variable, "servo_x")) {position_servo_x = val; sendToMega();}
+  else if (!strcmp(variable, "servo_y")) {position_servo_y = val; sendToMega();}
   else {
     res = -1;
   }
@@ -406,42 +395,12 @@ static esp_err_t stop_handler(httpd_req_t *req) {
   return httpd_resp_send(req, "OK", 2);
 }
 
-static esp_err_t ledon_handler(httpd_req_t *req) {
+static esp_err_t switch_led_handler(httpd_req_t *req) {
   add_cors_headers(req);
-  digitalWrite(gpLed, HIGH);
-  // Serial.println("LED ON");
-  httpd_resp_set_type(req, "text/html");
-  return httpd_resp_send(req, "OK", 2);
-}
 
-static esp_err_t ledoff_handler(httpd_req_t *req) {
-  add_cors_headers(req);
-  digitalWrite(gpLed, LOW);
-  // Serial.println("LED OFF");
-  httpd_resp_set_type(req, "text/html");
-  return httpd_resp_send(req, "OK", 2);
-}
+  ledState = !ledState;  // Toggle propre
+  digitalWrite(gpLed, ledState);
 
-static esp_err_t cam_left_handler(httpd_req_t *req) {
-  add_cors_headers(req);
-  camera_left();
-  // Serial.println("CAM LEFT");
-  httpd_resp_set_type(req, "text/html");
-  return httpd_resp_send(req, "OK", 2);
-}
-
-static esp_err_t cam_right_handler(httpd_req_t *req) {
-  add_cors_headers(req);
-  camera_right();
-  // Serial.println("CAM RIGHT");
-  httpd_resp_set_type(req, "text/html");
-  return httpd_resp_send(req, "OK", 2);
-}
-
-static esp_err_t cam_center_handler(httpd_req_t *req) {
-  add_cors_headers(req);
-  camera_center();
-  // Serial.println("CAM CENTER");
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, "OK", 2);
 }
@@ -587,12 +546,8 @@ void startCameraServer() {
   httpd_uri_t stop_uri = { "/stop", HTTP_GET, stop_handler, NULL, false, false, NULL };
   httpd_uri_t left_uri = { "/left", HTTP_GET, left_handler, NULL, false, false, NULL };
   httpd_uri_t right_uri = { "/right", HTTP_GET, right_handler, NULL, false, false, NULL };
-  httpd_uri_t ledon_uri = { "/ledon", HTTP_GET, ledon_handler, NULL, false, false, NULL };
-  httpd_uri_t ledoff_uri = { "/ledoff", HTTP_GET, ledoff_handler, NULL, false, false, NULL };
 
-  httpd_uri_t cam_left_uri = { "/cam_left", HTTP_GET, cam_left_handler, NULL, false, false, NULL };
-  httpd_uri_t cam_right_uri = { "/cam_right", HTTP_GET, cam_right_handler, NULL, false, false, NULL };
-  httpd_uri_t cam_center_uri = { "/cam_center", HTTP_GET, cam_center_handler, NULL, false, false, NULL };
+  httpd_uri_t switch_led_uri = { "/switch_led", HTTP_GET, switch_led_handler, NULL, false, false, NULL };
 
   httpd_uri_t mod_0_uri = { "/mod_0", HTTP_GET, move_standart_handler, NULL, false, false, NULL };
   httpd_uri_t mod_1_uri = { "/mod_1", HTTP_GET, move_stop_obstacle_handler, NULL, false, false, NULL };
@@ -608,8 +563,6 @@ void startCameraServer() {
 
   httpd_uri_t options_uri = { "/*", HTTP_OPTIONS, cors_options_handler, NULL, false, false, NULL };
 
-  // Serial.printf("Starting web server on port: '%d'\n", config.server_port);
-
   if (httpd_start(&server_rover, &config) == ESP_OK) {
     httpd_register_uri_handler(server_rover, &index_uri);
     httpd_register_uri_handler(server_rover, &go_uri);
@@ -617,12 +570,8 @@ void startCameraServer() {
     httpd_register_uri_handler(server_rover, &stop_uri);
     httpd_register_uri_handler(server_rover, &left_uri);
     httpd_register_uri_handler(server_rover, &right_uri);
-    httpd_register_uri_handler(server_rover, &ledon_uri);
-    httpd_register_uri_handler(server_rover, &ledoff_uri);
 
-    httpd_register_uri_handler(server_rover, &cam_left_uri);
-    httpd_register_uri_handler(server_rover, &cam_right_uri);
-    httpd_register_uri_handler(server_rover, &cam_center_uri);
+    httpd_register_uri_handler(server_rover, &switch_led_uri);
 
     httpd_register_uri_handler(server_rover, &mod_0_uri);
     httpd_register_uri_handler(server_rover, &mod_1_uri);

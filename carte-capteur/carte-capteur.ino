@@ -12,7 +12,8 @@
 #define BIN1_PIN 39
 #define BIN2_PIN 45
 
-#define PWM_SERVO_CAM 7
+#define PWM_SERVO_CAM_X 6
+#define PWM_SERVO_CAM_Y 7
 
 #define DHT_PIN 2
 #define DHT_TYPE DHT22
@@ -46,7 +47,8 @@ uint8_t saveConfig[] = {
   0x00,0x00
 };
 
-Servo ServoCam;
+Servo ServoCamX;
+Servo ServoCamY;
 
 float Vref = 5.0;
 float diviseur = 3.07;
@@ -94,7 +96,8 @@ int AIN2_val = 0;
 int BIN1_val = 0;
 int BIN2_val = 0;
 
-int SERVO_val = 90;
+int SERVO_X_val = 90;
+int SERVO_Y_val = 90;
 
 unsigned long lastSensorUpdate = 0;
 const unsigned long SENSOR_INTERVAL = 200;  // ms
@@ -224,15 +227,11 @@ void setup() {
   digitalWrite(BIN1_PIN, LOW);
   digitalWrite(BIN2_PIN, LOW);
 
-  ServoCam.attach(PWM_SERVO_CAM);
-  ServoCam.write(SERVO_val);
+  ServoCamX.attach(PWM_SERVO_CAM_X);
+  ServoCamX.write(SERVO_X_val);
 
-  // Attente de la première position GPS valide
-  // while (!gps.location.isValid()) {
-  //   while (Serial1.available() > 0) {
-  //     gps.encode(Serial1.read());
-  //   }
-  // }
+  ServoCamY.attach(PWM_SERVO_CAM_Y);
+  ServoCamY.write(SERVO_Y_val);
 
   digitalWrite(led_on, HIGH);
 }
@@ -250,15 +249,16 @@ void loop() {
       // Parsing : AIN1, AIN2, BIN1, BIN2, SERVO
       int parsed = sscanf(
         serial2Buffer,
-        "%d,%d,%d,%d,%d",
+        "%d,%d,%d,%d,%d,%d",
         &AIN1_val,
         &AIN2_val,
         &BIN1_val,
         &BIN2_val,
-        &SERVO_val
+        &SERVO_X_val,
+        &SERVO_Y_val
       );
 
-      if (parsed == 5) {
+      if (parsed == 6) {
         updateMotors();
       }
 
@@ -288,7 +288,8 @@ void updateMotors() {
   digitalWrite(BIN1_PIN, BIN1_val);
   digitalWrite(BIN2_PIN, BIN2_val);
 
-  ServoCam.write(SERVO_val);
+  ServoCamX.write(SERVO_X_val);
+  ServoCamY.write(SERVO_Y_val);
 }
 
 void updateSensors() {

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lecture Port COM</title>
+</head>
+<body>
+
+<button id="connect">Connecter</button>
+<pre id="output"></pre>
+
+<script>
+document.getElementById("connect").addEventListener("click", async () => {
+
+    // Demande à l'utilisateur de choisir un port série
+    const port = await navigator.serial.requestPort();
+
+    // Ouvre le port (exemple : 9600 bauds)
+    await port.open({ baudRate: 9600 });
+
+    const decoder = new TextDecoderStream();
+    const readableStreamClosed = port.readable.pipeTo(decoder.writable);
+    const reader = decoder.readable.getReader();
+
+    while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+            reader.releaseLock();
+            break;
+        }
+        document.getElementById("output").textContent = value;
+    }
+});
+</script>
+
+</body>
+</html>
