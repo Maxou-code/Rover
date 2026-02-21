@@ -1,4 +1,4 @@
-Pour qu’un rover soit vraiment efficace pour l’exploration (planétaire, terrestre difficile ou scientifique), il doit disposer de plusieurs types de capteurs afin de percevoir son environnement, naviguer en toute sécurité et collecter des données scientifiques. Voici une liste complète et organisée :
+Pour qu’un rover soit vraiment efficace pour l’exploration (planétaire, terrestre difficile ou scientifique), il doit disposer de plusieurs types de capteurs afin de percevoir son environnement, naviguer en toute sécurité et collecter des données scientifiques. Voici une liste complète et organisée:
 
 ---
 
@@ -59,8 +59,8 @@ Pour qu’un rover soit vraiment efficace pour l’exploration (planétaire, ter
 
 💡 **Résumé pratique pour un rover d’exploration terrestre “polyvalent”** :
 
-* Navigation : IMU, GPS, odométrie
-* Obstacles : Lidar, caméras stéréo, ultrasons
-* Environnement : Température, pression, humidité, gaz
-* Science : Caméra HD, spectromètre, capteurs sol
-* Sécurité : Température interne, courant, vibration
+* Navigation: IMU, GPS, odométrie
+* Obstacles: Lidar, caméras stéréo, ultrasons
+* Environnement: Température, pression, humidité, gaz
+* Science: Caméra HD, spectromètre, capteurs sol
+* Sécurité: Température interne, courant, vibration

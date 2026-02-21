@@ -6,13 +6,14 @@
 
 ## 🔧 Modules de contrôle et motorisation
 - 4 moteurs 12V
-- Servomoteur 9g SG90
+- 2 Servomoteur 9g SG90
 - `TB6612FNG` (Driver moteur)
 
 ## 🧪 Capteurs
 - DHT22 (Température et humidité)
 - 4 photorésistances
 - 5 capteurs ultrason HC-SR04P
+- Pont diviseur de tension
 - Module GPS TEL0094 (Connecteur : JST SH 6pins 1,0mm)
 
 ## 💡 Éléments lumineux
