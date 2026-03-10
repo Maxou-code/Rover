@@ -11,7 +11,7 @@
     break; \
   }
 
-#define PWMA_PIN 12
+#define PWMA_PIN 15
 #define PWMB_PIN 13
 
 #define PWMA 0

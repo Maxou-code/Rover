@@ -4,13 +4,15 @@
 #include <Arduino.h>
 #include <math.h>
 
-#define PIN_PDT A7
+#define PIN_PDT A8
 
-#define AIN1_PIN 33
-#define AIN2_PIN 27
+#define AIN1_PIN 25
+#define AIN2_PIN 23
 
-#define BIN1_PIN 39
-#define BIN2_PIN 45
+#define STBY_PIN 27
+
+#define BIN1_PIN 29
+#define BIN2_PIN 31
 
 #define PWM_SERVO_CAM_X 6
 #define PWM_SERVO_CAM_Y 7
@@ -98,6 +100,9 @@ int BIN2_val = 0;
 
 int SERVO_X_val = 90;
 int SERVO_Y_val = 90;
+
+int NEW_SERVO_X_val;
+int NEW_SERVO_Y_val;
 
 unsigned long lastSensorUpdate = 0;
 const unsigned long SENSOR_INTERVAL = 200;  // ms
@@ -217,11 +222,13 @@ void setup() {
 
   pinMode(led_on, OUTPUT);
 
+  pinMode(STBY_PIN, OUTPUT);
   pinMode(AIN1_PIN, OUTPUT);
   pinMode(AIN2_PIN, OUTPUT);
   pinMode(BIN1_PIN, OUTPUT);
   pinMode(BIN2_PIN, OUTPUT);
 
+  digitalWrite(STBY_PIN, HIGH);
   digitalWrite(AIN1_PIN, LOW);
   digitalWrite(AIN2_PIN, LOW);
   digitalWrite(BIN1_PIN, LOW);
@@ -254,8 +261,8 @@ void loop() {
         &AIN2_val,
         &BIN1_val,
         &BIN2_val,
-        &SERVO_X_val,
-        &SERVO_Y_val
+        &NEW_SERVO_X_val,
+        &NEW_SERVO_Y_val
       );
 
       if (parsed == 6) {
@@ -288,8 +295,15 @@ void updateMotors() {
   digitalWrite(BIN1_PIN, BIN1_val);
   digitalWrite(BIN2_PIN, BIN2_val);
 
-  ServoCamX.write(SERVO_X_val);
-  ServoCamY.write(SERVO_Y_val);
+  if (abs(NEW_SERVO_X_val - SERVO_X_val) > 3) {
+    ServoCamX.write(NEW_SERVO_X_val);
+    SERVO_X_val = NEW_SERVO_X_val;
+  }
+
+  if (abs(NEW_SERVO_Y_val - SERVO_Y_val) > 3) {
+    ServoCamY.write(NEW_SERVO_Y_val);
+    SERVO_Y_val = NEW_SERVO_Y_val;
+  }
 }
 
 void updateSensors() {
