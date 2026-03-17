@@ -6,6 +6,9 @@
 
 #define PIN_PDT A8
 
+#define EN_GPS_PIN 35
+#define PP_GPS_PIN 37
+
 #define AIN1_PIN 25
 #define AIN2_PIN 23
 
@@ -190,9 +193,11 @@ int Distance_test(int trig, int echo) {
 }
 
 void setup() {
-  // Serial.begin(9600);     // Debug
   Serial1.begin(9600);    // GPS
   Serial2.begin(115200);  // ESP
+
+  pinMode(EN_GPS_PIN, OUTPUT);
+  digitalWrite(EN_GPS_PIN, HIGH);
 
   delay(2000);
 
