@@ -26,10 +26,10 @@ int AIN2_val = 0;
 int BIN1_val = 0;
 int BIN2_val = 0;
 
-int speed = 100;
-
 volatile int ModMove = 0;
 volatile bool robot_fwd_val = false;
+
+extern int speed = 100;
 
 bool ledState = false;
 
@@ -83,10 +83,19 @@ void robot_stop() {
 }
 
 void robot_fwd() {
-  if (ModMove == 1 && DistFront <= 20) {
-    robot_stop();
-    return;
-  }
+  // if (ModMove == 1) {
+  //   if (DistFront <= 75 && DistFront >= 51){
+  //     speed = 70;
+  //   }
+  //   if (DistFront <= 50 && DistFront >= 26){
+  //     speed = 50;
+  //   }
+  //   if (DistFront <= 35){
+  //     speed = 50;
+  //     robot_stop();
+  //     return;
+  //   }
+  // }
 
   robot_fwd_val = true;
 

@@ -109,11 +109,8 @@ void loop() {
     // return;
   }
 
-  // Sécurité obstacle
-  if (ModMove == 1 && DistFront <= 20 && robot_fwd_val == true) {
+  if (ModMove == 1 && robot_fwd_val == true && DistFront <= 40) {
     robot_stop();
-    robot_fwd_val = false;
-    // return;
   }
 
   yield();

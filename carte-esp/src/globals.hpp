@@ -20,4 +20,6 @@ extern volatile int32_t latitude, longitude, altitude, speedGPS;
 extern volatile int ModMove;
 extern volatile bool robot_fwd_val;
 
+extern int speed;
+
 extern const char page[];

@@ -4,6 +4,8 @@
 #include <Arduino.h>
 #include <math.h>
 
+// #define PIN_LED 4
+
 #define PIN_PDT A8
 
 #define EN_GPS_PIN 35
@@ -93,7 +95,10 @@ int sat;
 double lat = 0;
 double lng = 0;
 
-int led_on = 4;
+int32_t latE7 = 0;
+int32_t lngE7 = 0;
+int32_t alt_int = 0;
+int32_t spd_int = 0;
 
 int AIN1_val = 0;
 int AIN2_val = 0;
@@ -109,6 +114,15 @@ int NEW_SERVO_Y_val;
 
 unsigned long lastSensorUpdate = 0;
 const unsigned long SENSOR_INTERVAL = 200;  // ms
+
+unsigned long lastUSGroup1 = 0;
+unsigned long lastUSGroup2 = 0;
+unsigned long lastDHT = 0;
+unsigned long lastLight = 0;
+
+const unsigned long INTERVAL_US = 100;
+const unsigned long INTERVAL_DHT = 250;
+const unsigned long INTERVAL_LIGHT = 100;
 
 char serial2Buffer[64];
 uint8_t serial2Index = 0;
@@ -145,51 +159,33 @@ int analogToLux(int val) {
     return (int)lux;  // renvoie un entier
 }
 
-int Distance_test(int trig, int echo) {
-    const int N = 5; // nombre de mesures
-    int mesures[N];
+unsigned long lastUS = 0;
 
-    // prendre N mesures
-    for (int i = 0; i < N; i++) {
-        digitalWrite(trig, LOW);
-        delayMicroseconds(2);
-        digitalWrite(trig, HIGH);
-        delayMicroseconds(10);
-        digitalWrite(trig, LOW);
-        long duration = pulseIn(echo, HIGH, 25000);
-        if (duration == 0) mesures[i] = -1; 
-        else mesures[i] = duration / 58;
-        delay(5);
-    }
+int usIndex = 0;
 
-    // compter les valeurs valides
-    int valid[N];
-    int count = 0;
-    for (int i = 0; i < N; i++) {
-        if (mesures[i] != -1) {
-            valid[count++] = mesures[i];
-        }
-    }
+// valeurs filtrées
+float fDistance_AD = 0;
+float fDistance_AG = 0;
+float fDistance_D = 0;
+float fDistance_G = 0;
+float fDistance_Ar = 0;
 
-    if (count == 0) return -1; // aucune mesure valide
+int Distance_fast(int trig, int echo) {
+    digitalWrite(trig, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trig, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trig, LOW);
 
-    // tri simple à bulles
-    for (int i = 0; i < count - 1; i++) {
-        for (int j = 0; j < count - i - 1; j++) {
-            if (valid[j] > valid[j + 1]) {
-                int tmp = valid[j];
-                valid[j] = valid[j + 1];
-                valid[j + 1] = tmp;
-            }
-        }
-    }
+    long duration = pulseIn(echo, HIGH, 15000); // timeout réduit
 
-    // retourner la médiane
-    if (count % 2 == 1) {
-        return valid[count / 2];
-    } else {
-        return (valid[count / 2 - 1] + valid[count / 2]) / 2;
-    }
+    if (duration == 0) return -1;
+    return duration / 58;
+}
+
+float filterEMA(float oldVal, float newVal, float alpha = 0.5) {
+    if (newVal == -1) return oldVal;
+    return alpha * newVal + (1 - alpha) * oldVal;
 }
 
 void setup() {
@@ -225,8 +221,6 @@ void setup() {
   pinMode(Echo_Capteur_US_AG, INPUT);
   pinMode(Trig_Capteur_US_AG, OUTPUT);
 
-  pinMode(led_on, OUTPUT);
-
   pinMode(STBY_PIN, OUTPUT);
   pinMode(AIN1_PIN, OUTPUT);
   pinMode(AIN2_PIN, OUTPUT);
@@ -245,53 +239,39 @@ void setup() {
   ServoCamY.attach(PWM_SERVO_CAM_Y);
   ServoCamY.write(SERVO_Y_val);
 
-  digitalWrite(led_on, HIGH);
+  // pinMode(PIN_LED, OUTPUT);
+  // digitalWrite(PIN_LED, HIGH);
 }
 
 void loop() {
 
-  // Lecture Serial2 (UART ESP)
+  // 🔥 PRIORITÉ MAX AUX COMMANDES
   while (Serial2.available()) {
     char c = Serial2.read();
 
-    // Fin de trame
     if (c == '\n') {
-      serial2Buffer[serial2Index] = '\0'; // Fin de string
+      serial2Buffer[serial2Index] = '\0';
 
-      // Parsing : AIN1, AIN2, BIN1, BIN2, SERVO
-      int parsed = sscanf(
-        serial2Buffer,
-        "%d,%d,%d,%d,%d,%d",
-        &AIN1_val,
-        &AIN2_val,
-        &BIN1_val,
-        &BIN2_val,
-        &NEW_SERVO_X_val,
-        &NEW_SERVO_Y_val
+      int parsed = sscanf(serial2Buffer, "%d,%d,%d,%d,%d,%d",
+        &AIN1_val, &AIN2_val, &BIN1_val, &BIN2_val,
+        &NEW_SERVO_X_val, &NEW_SERVO_Y_val
       );
 
-      if (parsed == 6) {
-        updateMotors();
-      }
+      if (parsed == 6) updateMotors();
 
-      // Reset buffer
       serial2Index = 0;
-    }
-    else {
-      // Stockage caractère si buffer pas plein
+    } else {
       if (serial2Index < sizeof(serial2Buffer) - 1) {
         serial2Buffer[serial2Index++] = c;
       }
     }
   }
 
-  while (Serial1.available()) gps.encode(Serial1.read());
+  // Capteurs après
+  updateSensors();
 
-  // Mise à jour des capteurs (inchangé)
-  if (millis() - lastSensorUpdate >= SENSOR_INTERVAL) {
-    lastSensorUpdate = millis();
-    updateSensors();
-  }
+  // GPS
+  while (Serial1.available()) gps.encode(Serial1.read());
 }
 
 void updateMotors() {
@@ -312,136 +292,139 @@ void updateMotors() {
 }
 
 void updateSensors() {
-  unsigned long currentMillis = millis();
+  unsigned long now = millis();
 
-  // Lire le capteur suivant si 50 ms se sont écoulées
-  if (currentMillis - lastSensorTime >= sensorInterval) {
-    lastSensorTime = currentMillis;
+  // =========================
+  // ULTRASON (1 capteur à la fois)
+  // =========================
+  if (now - lastUS >= INTERVAL_US) {
+    lastUS = now;
 
-    switch(sensorIndex) {
+    int d;
+
+    switch (usIndex) {
       case 0:
-        Distance_AD = Distance_test(Trig_Capteur_US_AD, Echo_Capteur_US_AD);
+        d = Distance_fast(Trig_Capteur_US_G, Echo_Capteur_US_G);
+        fDistance_G = filterEMA(fDistance_G, d);
         break;
+
       case 1:
-        Distance_Ar = Distance_test(Trig_Capteur_US_Ar, Echo_Capteur_US_Ar);
+        d = Distance_fast(Trig_Capteur_US_D, Echo_Capteur_US_D);
+        fDistance_D = filterEMA(fDistance_D, d);
         break;
+
       case 2:
-        Distance_D = Distance_test(Trig_Capteur_US_D, Echo_Capteur_US_D);
+        d = Distance_fast(Trig_Capteur_US_AD, Echo_Capteur_US_AD);
+        fDistance_AD = filterEMA(fDistance_AD, d);
         break;
+
       case 3:
-        Distance_G = Distance_test(Trig_Capteur_US_G, Echo_Capteur_US_G);
+        d = Distance_fast(Trig_Capteur_US_AG, Echo_Capteur_US_AG);
+        fDistance_AG = filterEMA(fDistance_AG, d);
         break;
+
       case 4:
-        Distance_AG = Distance_test(Trig_Capteur_US_AG, Echo_Capteur_US_AG);
+        d = Distance_fast(Trig_Capteur_US_Ar, Echo_Capteur_US_Ar);
+        fDistance_Ar = filterEMA(fDistance_Ar, d);
         break;
     }
 
-    sensorIndex++;
-    if (sensorIndex > 4) sensorIndex = 0; // Repartir du début
+    usIndex++;
+    if (usIndex > 4) usIndex = 0;
   }
 
-  // Calcul de Distance_A
+  // Conversion en int
+  Distance_G = (int)fDistance_G;
+  Distance_D = (int)fDistance_D;
+  Distance_AD = (int)fDistance_AD;
+  Distance_AG = (int)fDistance_AG;
+  Distance_Ar = (int)fDistance_Ar;
+
+  // Fusion avant
   Distance_A =
       (Distance_AD == -1) ? Distance_AG :
       (Distance_AG == -1) ? Distance_AD :
-      (Distance_AD < Distance_AG ? Distance_AD : Distance_AG);
+      min(Distance_AD, Distance_AG);
 
-  // --- Lecture des photos avec moyenne glissante ---
-  photo1Buffer[photoIndex] = analogRead(photo_1);
-  photo2Buffer[photoIndex] = analogRead(photo_2);
-  photo3Buffer[photoIndex] = analogRead(photo_3);
-  photo4Buffer[photoIndex] = analogRead(photo_4);
+  // =========================
+  // LUMIÈRE + BATTERIE
+  // =========================
+  if (now - lastLight >= INTERVAL_LIGHT) {
+    lastLight = now;
 
-  photoIndex = (photoIndex + 1) % PHOTO_SAMPLES; // passer à l'indice suivant
+    photo1Buffer[photoIndex] = analogRead(photo_1);
+    photo2Buffer[photoIndex] = analogRead(photo_2);
+    photo3Buffer[photoIndex] = analogRead(photo_3);
+    photo4Buffer[photoIndex] = analogRead(photo_4);
 
-  // Calcul des moyennes
-  long sum1 = 0, sum2 = 0, sum3 = 0, sum4 = 0;
-  for (int i = 0; i < PHOTO_SAMPLES; i++) {
+    photoIndex = (photoIndex + 1) % PHOTO_SAMPLES;
+
+    long sum1 = 0, sum2 = 0, sum3 = 0, sum4 = 0;
+    for (int i = 0; i < PHOTO_SAMPLES; i++) {
       sum1 += photo1Buffer[i];
       sum2 += photo2Buffer[i];
       sum3 += photo3Buffer[i];
       sum4 += photo4Buffer[i];
+    }
+
+    val_photo_1 = sum1 / PHOTO_SAMPLES;
+    val_photo_2 = sum2 / PHOTO_SAMPLES;
+    val_photo_3 = sum3 / PHOTO_SAMPLES;
+    val_photo_4 = sum4 / PHOTO_SAMPLES;
+
+    val_photo_moyen = (val_photo_1 + val_photo_2 + val_photo_3 + val_photo_4) / 4;
+    val_photo_moyen = analogToLux(val_photo_moyen);
+
+    // Batterie (rapide)
+    long somme = 0;
+    for (int i = 0; i < 5; i++) {
+      somme += analogRead(PIN_PDT);
+    }
+
+    float val = somme / 5.0;
+    Ubat = val * (Vref / 1023.0) * diviseur;
+    Ubat100 = (int)(Ubat * 100.0f + 0.5f);
   }
 
-  val_photo_1 = sum1 / PHOTO_SAMPLES;
-  val_photo_2 = sum2 / PHOTO_SAMPLES;
-  val_photo_3 = sum3 / PHOTO_SAMPLES;
-  val_photo_4 = sum4 / PHOTO_SAMPLES;
+  // =========================
+  // DHT
+  // =========================
+  if (now - lastDHT >= INTERVAL_DHT) {
+    lastDHT = now;
 
-  // Calcul de la valeur moyenne des 4 LDR
-  val_photo_moyen = (val_photo_1 + val_photo_2 + val_photo_3 + val_photo_4) / 4;
+    temp = dht.readTemperature();
+    hum = dht.readHumidity();
 
-  // Conversion en lux
-  val_photo_moyen = analogToLux(val_photo_moyen);
-
-  // Lecture DHT
-  temp = dht.readTemperature();
-  hum = dht.readHumidity();
-
-  if (!isnan(temp)) {
-    Temp10 = (int)(temp * 10.0f + (temp >= 0 ? 0.5f : -0.5f));
+    if (!isnan(temp)) Temp10 = (int)(temp * 10.0f);
+    if (!isnan(hum)) Hum10 = (int)(hum * 10.0f);
   }
 
-  if (!isnan(hum)) {
-    Hum10 = (int)(hum * 10.0f + 0.5f);
-  }
-
-  // Lecture Tension batterie
-  long somme = 0;
-  for (int i = 0; i < 50; i++) {
-    somme += analogRead(PIN_PDT);
-  }
-
-  float val = somme / 50.0;
-
-  Ubat = val * (Vref / 1023.0) * diviseur;
-  Ubat100 = (int)(Ubat * 100.0f + 0.5f);
-
+  // =========================
+  // GPS
+  // =========================
   sat = gps.satellites.value();
 
-  int32_t latE7 = 0;
-  int32_t lngE7 = 0;
-  int32_t alt_int = 0;
-  int32_t spd_int = 0;
-
   if (gps.location.isValid() && gps.location.age() < 2000 && sat >= 6 && gps.hdop.hdop() < 2.5) {
-      latE7 = (int32_t)(gps.location.lat() * 10000000.0);
-      lngE7 = (int32_t)(gps.location.lng() * 10000000.0);
+    latE7 = (int32_t)(gps.location.lat() * 10000000.0);
+    lngE7 = (int32_t)(gps.location.lng() * 10000000.0);
   }
 
   if (gps.altitude.isValid() && gps.altitude.age() < 2000 && sat >= 6) {
-      alt_int = (int32_t)gps.altitude.meters();
+    alt_int = (int32_t)gps.altitude.meters();
   }
 
-  if (gps.speed.isValid() && gps.speed.age() < 2000) {
-      spd_int = (int32_t)(gps.speed.kmph() * 10.0);
+  if (gps.speed.isValid() && gps.speed.age() < 2000 && sat >= 6) {
+    spd_int = (int32_t)(gps.speed.kmph() * 10.0);
   }
 
-  // Envoi des données
-  Serial2.print(Distance_A);
-  Serial2.print(",");
-  Serial2.print(Distance_Ar);
-  Serial2.print(",");
-  Serial2.print(Distance_D);
-  Serial2.print(",");
-  Serial2.print(Distance_G);
-  Serial2.print(",");
-  Serial2.print(val_photo_moyen);
-  Serial2.print(",");
-  Serial2.print(Temp10);
-  Serial2.print(",");
-  Serial2.print(Hum10);
-  Serial2.print(",");
-  Serial2.print(Ubat100);
-  Serial2.print(",");
-  Serial2.print(sat);
-  Serial2.print(",");
-  Serial2.print(latE7);
-  Serial2.print(",");
-  Serial2.print(lngE7);
-  Serial2.print(",");
-  Serial2.print(alt_int);
-  Serial2.print(",");
-  Serial2.print(spd_int);
-  Serial2.println();
+  // =========================
+  // ENVOI RAPIDE
+  // =========================
+  char buffer[128];
+  sprintf(buffer, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%ld,%ld,%ld,%ld\n",
+          Distance_A, Distance_Ar, Distance_D, Distance_G,
+          val_photo_moyen, Temp10, Hum10, Ubat100,
+          sat, latE7, lngE7, alt_int, spd_int);
+
+  Serial2.print(buffer);
 }
