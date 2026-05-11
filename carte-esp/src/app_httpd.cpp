@@ -83,27 +83,13 @@ void robot_stop() {
 }
 
 void robot_fwd() {
-  // if (ModMove == 1) {
-  //   if (DistFront <= 75 && DistFront >= 51){
-  //     speed = 70;
-  //   }
-  //   if (DistFront <= 50 && DistFront >= 26){
-  //     speed = 50;
-  //   }
-  //   if (DistFront <= 35){
-  //     speed = 50;
-  //     robot_stop();
-  //     return;
-  //   }
-  // }
-
   robot_fwd_val = true;
 
-  AIN1_val = 0;
-  AIN2_val = 1;
+  AIN1_val = 1;
+  AIN2_val = 0;
 
-  BIN1_val = 0;
-  BIN2_val = 1;
+  BIN1_val = 1;
+  BIN2_val = 0;
 
   ledcWrite(PWMA, speed);
   ledcWrite(PWMB, speed);
@@ -112,11 +98,11 @@ void robot_fwd() {
 }
 
 void robot_back() {
-  AIN1_val = 1;
-  AIN2_val = 0;
+  AIN1_val = 0;
+  AIN2_val = 1;
 
-  BIN1_val = 1;
-  BIN2_val = 0;
+  BIN1_val = 0;
+  BIN2_val = 1;
 
   ledcWrite(PWMA, speed);
   ledcWrite(PWMB, speed);
@@ -125,11 +111,11 @@ void robot_back() {
 }
 
 void robot_right() {
-  AIN1_val = 0;
-  AIN2_val = 1;
+  AIN1_val = 1;
+  AIN2_val = 0;
 
-  BIN1_val = 1;
-  BIN2_val = 0;
+  BIN1_val = 0;
+  BIN2_val = 1;
 
   ledcWrite(PWMA, speed);
   ledcWrite(PWMB, speed);
@@ -138,11 +124,11 @@ void robot_right() {
 }
 
 void robot_left() {
-  AIN1_val = 1;
-  AIN2_val = 0;
+  AIN1_val = 0;
+  AIN2_val = 1;
 
-  BIN1_val = 0;
-  BIN2_val = 1;
+  BIN1_val = 1;
+  BIN2_val = 0;
 
   ledcWrite(PWMA, speed);
   ledcWrite(PWMB, speed);

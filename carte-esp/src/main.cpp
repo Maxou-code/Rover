@@ -6,7 +6,6 @@
 #include "globals.hpp"
 
 // Sélectionnez le modèle de caméra
-#define CAMERA_MODEL_AI_THINKER
 const char* ssid = "Rover";
 const char* password = "12345678";
 
@@ -15,7 +14,8 @@ extern void robot_setup();
 
 void parseFrame(char* buf);
 
-#if defined(CAMERA_MODEL_AI_THINKER)
+// CAMERA_MODEL_AI_THINKER
+
 #define PWDN_GPIO_NUM 32
 #define RESET_GPIO_NUM -1
 #define XCLK_GPIO_NUM 0
@@ -33,10 +33,6 @@ void parseFrame(char* buf);
 #define VSYNC_GPIO_NUM 25
 #define HREF_GPIO_NUM 23
 #define PCLK_GPIO_NUM 22
-
-#else
-#error "Camera model not selected"
-#endif
 
 // Pin Lumière
 int gpLed = 4;
