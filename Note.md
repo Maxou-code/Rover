@@ -4,7 +4,7 @@ Ce document présente les principales améliorations matérielles nécessaires a
 
 ---
 
-## 🧱 1. Remplacement du châssis
+## 🧱 1. Remplacement du châssis `✅ FAIT`
 
 ### Problème actuel
 - Châssis en **carton** :
@@ -42,7 +42,7 @@ Ce document présente les principales améliorations matérielles nécessaires a
 
 ---
 
-## 🧩 3. Boîtiers 3D pour les composants
+## 🧩 3. Boîtiers 3D pour les composants `✅ FAIT`
 
 ### Objectifs
 - Protéger l’électronique
@@ -64,7 +64,7 @@ Ce document présente les principales améliorations matérielles nécessaires a
 
 ---
 
-## 🔌 4. Shield custom pour l’Arduino Mega
+## 🔌 4. Shield custom pour l’Arduino Mega `✅ FAIT`
 
 ### Problème actuel
 - Câblage complexe
@@ -106,7 +106,7 @@ Ce document présente les principales améliorations matérielles nécessaires a
 
 ---
 
-## 🔋 6. Améliorations électriques complémentaires
+## 🔋 6. Améliorations électriques complémentaires `✅ FAIT`
 
 - Alimentation de l’ESP32 via un **buck converter** (LM2596 / MP1584)
 - Condensateurs antiparasites sur les moteurs
