@@ -1,4 +1,4 @@
-<!-- html-minifier-terser interface.html --collapse-whitespace --remove-comments --remove-optional-tags --remove-redundant-attributes --remove-script-type-attributes --remove-style-link-type-attributes --minify-css true --minify-js true -o interface.min.html -->
+<!-- html-minifier-terser index.html --collapse-whitespace --remove-comments --remove-optional-tags --remove-redundant-attributes --remove-script-type-attributes --remove-style-link-type-attributes --minify-css true --minify-js true -o interface.min.html -->
 <!-- python -m http.server 8080 -->
 <!DOCTYPE html>
 <html lang="fr">
@@ -316,7 +316,7 @@
 	});
 
 	function sendCommand(variable, valeur) {
-		fetch(`http://192.168.4.1/control?var=${variable}&val=${valeur}`);
+		fetch("http://192.168.4.1/control?var=" + variable + "&val=" + valeur)
 	}
 
 	let camHasError = false;

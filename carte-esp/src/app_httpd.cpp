@@ -4,6 +4,7 @@
 #include <img_converters.h>
 
 #include "globals.hpp"
+#include "app_ui.hpp"
 
 #define SEND_CHUNK_OR_BREAK(x) \
   if ((x) != ESP_OK) { \
@@ -29,7 +30,7 @@ int BIN2_val = 0;
 volatile int ModMove = 0;
 volatile bool robot_fwd_val = false;
 
-extern int speed = 100;
+int speed = 100;
 
 bool ledState = false;
 
@@ -345,7 +346,7 @@ static esp_err_t cors_options_handler(httpd_req_t *req) {
 static esp_err_t index_handler(httpd_req_t *req) {
   add_cors_headers(req);
 
-  const char page[] PROGMEM = R"rawliteral(Utilisez la page index.html en serveur local (v 1.0.1))rawliteral";
+  // const char page[] PROGMEM = R"rawliteral(Utilisez la page index.html en serveur local (v 1.0.1))rawliteral";
 
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, page, HTTPD_RESP_USE_STRLEN);

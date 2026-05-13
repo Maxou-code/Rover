@@ -3,7 +3,6 @@
 #include <Servo.h>
 #include <Arduino.h>
 #include <math.h>
-#include <avr/wdt.h>
 
 // =====================================================================
 // PINS
@@ -318,8 +317,6 @@ void updateSensors() {
 // SETUP
 // =====================================================================
 void setup() {
-  wdt_enable(WDTO_2S);
-
   Serial1.begin(9600);    // GPS
   Serial2.begin(115200);  // ESP
 
@@ -370,8 +367,6 @@ void setup() {
 // LOOP
 // =====================================================================
 void loop() {
-  wdt_reset();
-
   // PRIORITÉ MAX : commandes moteurs depuis l'ESP
   while (Serial2.available()) {
     char c = Serial2.read();
