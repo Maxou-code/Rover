@@ -151,6 +151,36 @@
 	#error {
 		color: red;
 	}
+
+	input[type="range"] {
+		-webkit-appearance: none;
+		appearance: none;
+		background: gray;
+		border-radius: 99px;
+		cursor: pointer;
+	}
+
+	input[type="range"]::-webkit-slider-thumb {
+		-webkit-appearance: none; /* toujours requis sur le thumb */
+		width: 20px;
+		height: 20px;
+		border-radius: 50%;
+		background: orange;
+		border: 3px solid black;
+		box-shadow: 0 0 0 2px orange;
+	}
+
+	.slider-cam-x {
+		width: 150px;
+		height: 6px;
+	}
+
+	.slider-cam-y {
+		writing-mode: vertical-lr;
+		/*direction: rtl;*/
+		width: 6px;
+		height: 150px;
+	}
 	</style>
 	<script>
 	let speedVal = 0;
@@ -313,6 +343,18 @@
 		if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
 			getsend("stop");
 		}
+	});
+
+	document.addEventListener("DOMContentLoaded", () => {
+		const sliderCamX = document.getElementById("slider-cam-x");
+		sliderCamX.addEventListener("input", () => {
+			sendCommand('servo_x', sliderCamX.value);
+		});
+
+		const sliderCamY = document.getElementById("slider-cam-y");
+		sliderCamY.addEventListener("input", () => {
+			sendCommand('servo_y', sliderCamY.value);
+		});
 	});
 
 	function sendCommand(variable, valeur) {
@@ -519,7 +561,11 @@
 		</div>
 		<!-- Caméra -->
 		<div class="card image no-select">
-			<img src="http://192.168.4.1:81/stream" alt="Stream" class="video">
+			<div>
+				<img src="http://192.168.4.1:81/stream" alt="Stream" class="video">
+				<input id="slider-cam-y" class="slider-cam-y" type="range" step="5" min="70" max="110" value="90">
+			</div>
+			<input id="slider-cam-x" class="slider-cam-x" type="range" step="5" min="45" max="135" value="90">
 			<div class="button-row">
 				<button class="button-cam" onmousedown="sendCommand('servo_x', 135)">Gauche</button>
 				<button class="button-cam" onmousedown="sendCommand('servo_x', 90)">Centre</button>
