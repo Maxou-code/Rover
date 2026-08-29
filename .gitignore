@@ -1,9 +1,4 @@
 # Dossier
 
-carte-esp/.pio
-carte-esp/.vscode
+CarteESP/.pio
 prototype
-
-# Fichier
-
-carte-esp/platformio_local.ini
