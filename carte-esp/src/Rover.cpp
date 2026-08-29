@@ -1,10 +1,9 @@
 #include <esp_http_server.h>
-#include <esp_timer.h>
 #include <esp_camera.h>
-#include <img_converters.h>
+#include <cinttypes>
+#include <Arduino.h>
 
-#include "globals.hpp"
-#include "app_ui.hpp"
+#include "Globals.hpp"
 
 #define SEND_CHUNK_OR_BREAK(x) \
   if ((x) != ESP_OK) { \
@@ -18,38 +17,36 @@
 #define PWMA 0
 #define PWMB 1
 
-int position_servo_x = 90;
-int position_servo_y = 90;
+static int position_servo_x = 90;
+static int position_servo_y = 90;
 
-int AIN1_val = 0;
-int AIN2_val = 0;
+static int AIN1_val = 0;
+static int AIN2_val = 0;
 
-int BIN1_val = 0;
-int BIN2_val = 0;
+static int BIN1_val = 0;
+static int BIN2_val = 0;
 
 volatile int ModMove = 0;
 volatile bool robot_fwd_val = false;
 
-int speed = 100;
+static int speed = 100;
 
-bool ledState = false;
+static bool ledState = false;
 
-void sendToMega();
+static void sendToMega();
 
-void robot_setup();
-void robot_stop();
-void robot_fwd();
-void robot_back();
-void robot_left();
-void robot_right();
+static void robot_fwd();
+static void robot_back();
+static void robot_left();
+static void robot_right();
 
 void camera_left();
 void camera_right();
 void camera_center();
 
 void robot_setup() {
-  const int pwmFreq = 20000;
-  const int pwmRes = 8;
+  constexpr int pwmFreq = 20000;
+  constexpr int pwmRes = 8;
 
   // Configuration d'abord
   ledcSetup(0, pwmFreq, pwmRes);
@@ -160,29 +157,33 @@ void sendToMega() {
 }
 
 #define PART_BOUNDARY "123456789000000000000987654321"
-static const char *_STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
-static const char *_STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
+static const char *STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
+static const char *STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
 
-httpd_handle_t stream_httpd = NULL;
-httpd_handle_t server_rover = NULL;
+static httpd_handle_t stream_httpd = nullptr;
+static httpd_handle_t server_rover = nullptr;
 
 static esp_err_t capture_handler(httpd_req_t *req) {
-  // Capture d'une frame
   camera_fb_t *fb = esp_camera_fb_get();
+
   if (!fb) {
-    // Serial.println("Camera capture failed");
     httpd_resp_send_500(req);
     return ESP_FAIL;
   }
 
-  // On force le type JPEG
   httpd_resp_set_type(req, "image/jpeg");
-  httpd_resp_set_hdr(req, "Content-Disposition", "inline; filename=capture.jpg");
+  httpd_resp_set_hdr(
+      req,
+      "Content-Disposition",
+      "inline; filename=capture.jpg"
+  );
 
-  // Envoi direct du buffer JPEG
-  esp_err_t res = httpd_resp_send(req, (const char *)fb->buf, fb->len);
+  esp_err_t res = httpd_resp_send(
+      req,
+      reinterpret_cast<const char*>(fb->buf),
+      static_cast<ssize_t>(fb->len)
+  );
 
-  // Libération de la frame
   esp_camera_fb_return(fb);
 
   return res;
@@ -190,38 +191,63 @@ static esp_err_t capture_handler(httpd_req_t *req) {
 
 static esp_err_t stream_handler(httpd_req_t *req) {
   esp_err_t res = ESP_OK;
-  static char part_buf[128];  // réutilisable
-  httpd_resp_set_type(req, _STREAM_CONTENT_TYPE);
+
+  static char part_buf[128];
+
+  httpd_resp_set_type(req, STREAM_CONTENT_TYPE);
   httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
   httpd_resp_set_hdr(req, "Cache-Control", "no-store, no-cache, must-revalidate");
 
   TickType_t xLastWakeTime = xTaskGetTickCount();
-  const TickType_t xFrequency = 33 / portTICK_PERIOD_MS;  // 30 FPS ~33ms
+  constexpr TickType_t xFrequency = 33 / portTICK_PERIOD_MS;
 
   while (true) {
     camera_fb_t *fb = esp_camera_fb_get();
+
     if (!fb) {
-      vTaskDelay(1);  // petite pause si capture échoue
+      vTaskDelay(1);
       continue;
     }
 
     // Envoi MJPEG
-    if (httpd_resp_send_chunk(req, _STREAM_BOUNDARY, strlen(_STREAM_BOUNDARY)) != ESP_OK) {
-      esp_camera_fb_return(fb);
-      res = ESP_FAIL;
-      break;
-    }
+    if (httpd_resp_send_chunk(
+            req,
+            STREAM_BOUNDARY,
+            static_cast<ssize_t>(strlen(STREAM_BOUNDARY))
+        ) != ESP_OK) {
 
-    int hlen = sprintf(part_buf, "--boundary\r\nContent-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n", fb->len);
-    if (httpd_resp_send_chunk(req, part_buf, hlen) != ESP_OK || httpd_resp_send_chunk(req, (const char *)fb->buf, fb->len) != ESP_OK) {
       esp_camera_fb_return(fb);
       res = ESP_FAIL;
       break;
-    }
+        }
+
+    const int hlen = snprintf(
+        part_buf,
+        sizeof(part_buf),
+        "--boundary\r\n"
+        "Content-Type: image/jpeg\r\n"
+        "Content-Length: %zu\r\n"
+        "\r\n",
+        fb->len
+    );
+
+    if (hlen < 0 ||
+        hlen >= static_cast<int>(sizeof(part_buf)) ||
+        httpd_resp_send_chunk(req, part_buf, hlen) != ESP_OK ||
+        httpd_resp_send_chunk(
+            req,
+            reinterpret_cast<const char*>(fb->buf),
+            static_cast<ssize_t>(fb->len)
+        ) != ESP_OK) {
+
+      esp_camera_fb_return(fb);
+      res = ESP_FAIL;
+      break;
+        }
 
     esp_camera_fb_return(fb);
 
-    // cadence stable 30 FPS
+    // cadence stable ~30 FPS
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 
@@ -237,8 +263,6 @@ static void add_cors_headers(httpd_req_t *req) {
 
 static esp_err_t cmd_handler(httpd_req_t *req) {
   add_cors_headers(req);
-  char *buf;
-  size_t buf_len;
   char variable[32] = {
     0,
   };
@@ -246,9 +270,9 @@ static esp_err_t cmd_handler(httpd_req_t *req) {
     0,
   };
 
-  buf_len = httpd_req_get_url_query_len(req) + 1;
+  const size_t buf_len = httpd_req_get_url_query_len(req) + 1;
   if (buf_len > 1) {
-    buf = (char *)malloc(buf_len);
+    const auto buf = static_cast<char *>(malloc(buf_len));
     if (!buf) {
       httpd_resp_send_500(req);
       return ESP_FAIL;
@@ -276,12 +300,12 @@ static esp_err_t cmd_handler(httpd_req_t *req) {
   int res = 0;
 
   if (!strcmp(variable, "framesize")) {
-    if (s->pixformat == PIXFORMAT_JPEG) res = s->set_framesize(s, (framesize_t)val);
+    if (s->pixformat == PIXFORMAT_JPEG) res = s->set_framesize(s, static_cast<framesize_t>(val));
   } else if (!strcmp(variable, "quality")) res = s->set_quality(s, val);
   else if (!strcmp(variable, "contrast")) res = s->set_contrast(s, val);
   else if (!strcmp(variable, "brightness")) res = s->set_brightness(s, val);
   else if (!strcmp(variable, "saturation")) res = s->set_saturation(s, val);
-  else if (!strcmp(variable, "gainceiling")) res = s->set_gainceiling(s, (gainceiling_t)val);
+  else if (!strcmp(variable, "gainceiling")) res = s->set_gainceiling(s, static_cast<gainceiling_t>(val));
   else if (!strcmp(variable, "colorbar")) res = s->set_colorbar(s, val);
   else if (!strcmp(variable, "awb")) res = s->set_whitebal(s, val);
   else if (!strcmp(variable, "agc")) res = s->set_gain_ctrl(s, val);
@@ -311,7 +335,7 @@ static esp_err_t cmd_handler(httpd_req_t *req) {
     return httpd_resp_send_500(req);
   }
 
-  return httpd_resp_send(req, NULL, 0);
+  return httpd_resp_send(req, nullptr, 0);
 }
 
 static esp_err_t status_handler(httpd_req_t *req) {
@@ -340,13 +364,11 @@ static esp_err_t status_handler(httpd_req_t *req) {
 
 static esp_err_t cors_options_handler(httpd_req_t *req) {
   add_cors_headers(req);
-  return httpd_resp_send(req, NULL, 0);  // réponse vide
+  return httpd_resp_send(req, nullptr, 0);  // réponse vide
 }
 
 static esp_err_t index_handler(httpd_req_t *req) {
   add_cors_headers(req);
-
-  // const char page[] PROGMEM = R"rawliteral(Utilisez la page index.html en serveur local (v 1.0.1))rawliteral";
 
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, page, HTTPD_RESP_USE_STRLEN);
@@ -434,7 +456,7 @@ static esp_err_t down_speed_handler(httpd_req_t *req) {
 }
 
 // Échappe " et \ pour JSON, modifie le buffer output
-void escape_json(const char *input, char *output, size_t outSize) {
+static void escape_json(const char *input, char *output, size_t outSize) {
   size_t j = 0;
   for (size_t i = 0; input[i] != '\0' && j < outSize - 1; i++) {
     char c = input[i];
@@ -461,7 +483,7 @@ void escape_json(const char *input, char *output, size_t outSize) {
   output[j] = '\0';
 }
 
-void int32ToDMSString(int32_t coord_scaled, bool isLatitude, char *buffer, size_t bufSize) {
+static void int32ToDMSString(int32_t coord_scaled, bool isLatitude, char *buffer, size_t bufSize) {
   // Séparer le signe
   bool isPositive = (coord_scaled >= 0);
   int32_t absCoord = isPositive ? coord_scaled : -coord_scaled;
@@ -474,7 +496,7 @@ void int32ToDMSString(int32_t coord_scaled, bool isLatitude, char *buffer, size_
   int minutes = (minutes_part * 60) / 10000000;
 
   // Secondes (float pour précision)
-  float seconds = ((minutes_part * 60.0f) / 10000000 - minutes) * 60.0f;
+  float seconds = ((static_cast<float>(minutes_part) * 60.0f) / 10000000 - static_cast<float>(minutes)) * 60.0f;
 
   // Direction
   char dir;
@@ -506,16 +528,16 @@ static esp_err_t data_handler(httpd_req_t *req) {
   escape_json(lat, lat_json, sizeof(lat_json));
   escape_json(lon, lon_json, sizeof(lon_json));
 
-  float speedGPSFloat = speedGPS / 10.0f;
+  float speedGPSFloat = static_cast<float>(speedGPS) / 10.0f;
 
   float TempEspCPU = temperatureRead();
 
-  float TempFloat = Temp / 10.0f;
-  float HumFloat = Hum / 10.0f;
-  float UbatFloat = Ubat / 100.0f;
+  float TempFloat = static_cast<float>(Temp) / 10.0f;
+  float HumFloat = static_cast<float>(Hum) / 10.0f;
+  float UbatFloat = static_cast<float>(Ubat) / 100.0f;
 
   snprintf(json, sizeof(json),
-           "{\"Sat\":%d,\"Lat\":\"%s\",\"Lon\":\"%s\",\"Alt\":%ld,\"speedGPS\":%.1f,\"Temp\":%.1f,\"Hum\":%.1f,\"Ubat\":%.2f,\"LumMoy\":%d,"
+           "{\"Sat\":%d,\"Lat\":\"%s\",\"Lon\":\"%s\",\"Alt\":%" PRId32 ",\"speedGPS\":%.1f,\"Temp\":%.1f,\"Hum\":%.1f,\"Ubat\":%.2f,\"LumMoy\":%d,"
            "\"DistFront\":%d,\"DistBack\":%d,\"DistRight\":%d,\"DistLeft\":%d,\"ModMove\":%d,\"Speed\":%d,\"TempEspCPU\":%.1f}",
            Sat, lat_json, lon_json, altitude, speedGPSFloat, TempFloat, HumFloat, UbatFloat, LumMoy,
            DistFront, DistBack, DistRight, DistLeft, ModMove, speed, TempEspCPU);
@@ -536,28 +558,28 @@ void startCameraServer() {
   // config.max_open_sockets = 7;
   config.lru_purge_enable = true;
 
-  httpd_uri_t index_uri = { "/", HTTP_GET, index_handler, NULL, false, false, NULL };
-  httpd_uri_t go_uri = { "/go", HTTP_GET, go_handler, NULL, false, false, NULL };
-  httpd_uri_t back_uri = { "/back", HTTP_GET, back_handler, NULL, false, false, NULL };
-  httpd_uri_t stop_uri = { "/stop", HTTP_GET, stop_handler, NULL, false, false, NULL };
-  httpd_uri_t left_uri = { "/left", HTTP_GET, left_handler, NULL, false, false, NULL };
-  httpd_uri_t right_uri = { "/right", HTTP_GET, right_handler, NULL, false, false, NULL };
+  httpd_uri_t index_uri = { "/", HTTP_GET, index_handler, nullptr, false, false, nullptr};
+  httpd_uri_t go_uri = { "/go", HTTP_GET, go_handler, nullptr, false, false, nullptr};
+  httpd_uri_t back_uri = { "/back", HTTP_GET, back_handler, nullptr, false, false, nullptr};
+  httpd_uri_t stop_uri = { "/stop", HTTP_GET, stop_handler, nullptr, false, false, nullptr};
+  httpd_uri_t left_uri = { "/left", HTTP_GET, left_handler, nullptr, false, false, nullptr};
+  httpd_uri_t right_uri = { "/right", HTTP_GET, right_handler, nullptr, false, false, nullptr};
 
-  httpd_uri_t switch_led_uri = { "/switch_led", HTTP_GET, switch_led_handler, NULL, false, false, NULL };
+  httpd_uri_t switch_led_uri = { "/switch_led", HTTP_GET, switch_led_handler, nullptr, false, false, nullptr};
 
-  httpd_uri_t mod_0_uri = { "/mod_0", HTTP_GET, move_standart_handler, NULL, false, false, NULL };
-  httpd_uri_t mod_1_uri = { "/mod_1", HTTP_GET, move_stop_obstacle_handler, NULL, false, false, NULL };
+  httpd_uri_t mod_0_uri = { "/mod_0", HTTP_GET, move_standart_handler, nullptr, false, false, nullptr};
+  httpd_uri_t mod_1_uri = { "/mod_1", HTTP_GET, move_stop_obstacle_handler, nullptr, false, false, nullptr};
 
-  httpd_uri_t up_speed_uri = { "/up_speed", HTTP_GET, up_speed_handler, NULL, false, false, NULL };
-  httpd_uri_t down_speed_uri = { "/down_speed", HTTP_GET, down_speed_handler, NULL, false, false, NULL };
+  httpd_uri_t up_speed_uri = { "/up_speed", HTTP_GET, up_speed_handler, nullptr, false, false, nullptr};
+  httpd_uri_t down_speed_uri = { "/down_speed", HTTP_GET, down_speed_handler, nullptr, false, false, nullptr};
 
-  httpd_uri_t status_uri = { "/status", HTTP_GET, status_handler, NULL, false, false, NULL };
-  httpd_uri_t cmd_uri = { "/control", HTTP_GET, cmd_handler, NULL, false, false, NULL };
-  httpd_uri_t capture_uri = { "/capture", HTTP_GET, capture_handler, NULL, false, false, NULL };
-  httpd_uri_t uri_data = { "/data", HTTP_GET, data_handler, NULL, false, false, NULL };
-  httpd_uri_t stream_uri = { "/stream", HTTP_GET, stream_handler, NULL, false, false, NULL };
+  httpd_uri_t status_uri = { "/status", HTTP_GET, status_handler, nullptr, false, false, nullptr};
+  httpd_uri_t cmd_uri = { "/control", HTTP_GET, cmd_handler, nullptr, false, false, nullptr};
+  httpd_uri_t capture_uri = { "/capture", HTTP_GET, capture_handler, nullptr, false, false, nullptr};
+  httpd_uri_t uri_data = { "/data", HTTP_GET, data_handler, nullptr, false, false, nullptr};
+  httpd_uri_t stream_uri = { "/stream", HTTP_GET, stream_handler, nullptr, false, false, nullptr};
 
-  httpd_uri_t options_uri = { "/*", HTTP_OPTIONS, cors_options_handler, NULL, false, false, NULL };
+  httpd_uri_t options_uri = { "/*", HTTP_OPTIONS, cors_options_handler, nullptr, false, false, nullptr};
 
   if (httpd_start(&server_rover, &config) == ESP_OK) {
     httpd_register_uri_handler(server_rover, &index_uri);

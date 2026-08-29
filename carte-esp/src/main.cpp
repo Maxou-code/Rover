@@ -2,14 +2,14 @@
 #include <esp_bt.h>
 #include <WiFi.h>
 #include <ArduinoOTA.h>
+#include <Arduino.h>
 
-#include "globals.hpp"
+#include "Globals.hpp"
 
-// Sélectionnez le modèle de caméra
-const char* ssid = "Rover";
-const char* password = "12345678";
+static auto ssid = "Rover";
+static auto password = "12345678";
 
-void parseFrame(char* buf);
+static void parseFrame(char* buf);
 
 // CAMERA_MODEL_AI_THINKER
 
@@ -41,13 +41,12 @@ volatile int32_t latitude, longitude, altitude, speedGPS;
 
 int ps_ram;
 
-unsigned long lastFrameTime = 0;
-
-void startCameraServer();
+static unsigned long lastFrameTime = 0;
 
 void setup() {
   Serial.begin(115200);
-  Serial.setDebugOutput(false);
+  // Serial.println("Start");
+  // Serial.setDebugOutput(true);
 
   robot_setup();
 
@@ -75,7 +74,7 @@ void loop() {
   ArduinoOTA.handle();
 
   static char buffer[512];
-  static uint8_t index = 0;
+  static size_t index = 0;
   int count = 0;
 
   while (Serial.available()) {
@@ -109,7 +108,7 @@ void loop() {
   yield();
 }
 
-inline char* nextField(char* p) {
+static char* nextField(const char* p) {
   if (!p) return nullptr;
   char* c = strchr(p, ',');
   if (!c) return nullptr;
@@ -119,22 +118,23 @@ inline char* nextField(char* p) {
 
 void parseFrame(char* buf) {
   char* p = buf;
+  char* end;
 
-  DistFront = atoi(p); p = nextField(p);
-  DistBack  = p ? atoi(p) : 0; p = nextField(p);
-  DistRight = p ? atoi(p) : 0; p = nextField(p);
-  DistLeft  = p ? atoi(p) : 0; p = nextField(p);
+  DistFront = static_cast<int>(std::strtol(p, &end, 10)); p = nextField(p);
+  DistBack  = p ? static_cast<int>(std::strtol(p, &end, 10)) : 0; p = nextField(p);
+  DistRight = p ? static_cast<int>(std::strtol(p, &end, 10)) : 0; p = nextField(p);
+  DistLeft  = p ? static_cast<int>(std::strtol(p, &end, 10)) : 0; p = nextField(p);
 
-  LumMoy = p ? atoi(p) : 0; p = nextField(p);
-  Temp   = p ? atoi(p) : 0; p = nextField(p);
-  Hum    = p ? atoi(p) : 0; p = nextField(p);
-  Ubat   = p ? atoi(p) : 0; p = nextField(p);
+  LumMoy = p ? static_cast<int>(std::strtol(p, &end, 10)) : 0; p = nextField(p);
+  Temp   = p ? static_cast<int>(std::strtol(p, &end, 10)) : 0; p = nextField(p);
+  Hum    = p ? static_cast<int>(std::strtol(p, &end, 10)) : 0; p = nextField(p);
+  Ubat   = p ? static_cast<int>(std::strtol(p, &end, 10)) : 0; p = nextField(p);
 
-  Sat    = p ? atoi(p) : 0; p = nextField(p);
-  latitude  = p ? atol(p) : 0; p = nextField(p);
-  longitude = p ? atol(p) : 0; p = nextField(p);
-  altitude  = p ? atol(p) : 0; p = nextField(p);
-  speedGPS  = p ? atol(p) : 0;
+  Sat       = p ? static_cast<int>(std::strtol(p, &end, 10)) : 0; p = nextField(p);
+  latitude  = p ? std::strtol(p, &end, 10) : 0; p = nextField(p);
+  longitude = p ? std::strtol(p, &end, 10) : 0; p = nextField(p);
+  altitude  = p ? std::strtol(p, &end, 10) : 0; p = nextField(p);
+  speedGPS  = p ? std::strtol(p, &end, 10) : 0;
 
   lastFrameTime = millis();
 }
@@ -201,7 +201,7 @@ void camera_setup() {
     s->set_aec_value(s, 300);                 // 0 à 1200
     s->set_gain_ctrl(s, 1);                   // auto gain
     s->set_agc_gain(s, 0);                    // 0 à 30
-    s->set_gainceiling(s, (gainceiling_t)0);  // 0 à 6
+    s->set_gainceiling(s, static_cast<gainceiling_t>(0));  // 0 à 6
     s->set_bpc(s, 0);                         // black pixel correction
     s->set_wpc(s, 1);                         // white pixel correction
     s->set_raw_gma(s, 1);                     // gamma correction
